@@ -1,0 +1,219 @@
+{
+  "openapi": "3.0.1",
+  "info": {
+    "title": "Streamline Gantt Actions",
+    "description": "Actions exposed by the Streamline declarative agent. Each action maps to a handler in src/copilot/agentActions.js on the backend. All date fields are ISO 8601 (YYYY-MM-DD).",
+    "version": "1.0.0"
+  },
+  "servers": [
+    {
+      "url": "https://localhost:3000/api/copilot",
+      "description": "Local development endpoint"
+    }
+  ],
+  "paths": {
+    "/createGantt": {
+      "post": {
+        "operationId": "createGantt",
+        "summary": "Create a Gantt chart from a list of swim lanes, tasks, and milestones.",
+        "description": "Builds a new Gantt chart in the user's active PowerPoint slide. The caller provides a structured list of tasks grouped by swim lane. Returns a summary with task counts and layout stats.",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": { "$ref": "#/components/schemas/CreateGanttRequest" }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Gantt created",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/GanttSummary" }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/importFromM365": {
+      "post": {
+        "operationId": "importFromM365",
+        "summary": "Import tasks from a Microsoft 365 data source.",
+        "description": "Pulls tasks from Planner, To Do, OneDrive file, or SharePoint list and generates a Gantt chart. Requires the caller to supply a source type and identifier.",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": { "$ref": "#/components/schemas/ImportFromM365Request" }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Import complete",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/GanttSummary" }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/updateTasks": {
+      "post": {
+        "operationId": "updateTasks",
+        "summary": "Update one or more tasks on an existing Gantt chart.",
+        "description": "Shift dates, rename tasks, or change status. Dependent tasks cascade automatically via the autoScheduler.",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": { "$ref": "#/components/schemas/UpdateTasksRequest" }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Tasks updated",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/UpdateTasksResponse" }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/describeGantt": {
+      "post": {
+        "operationId": "describeGantt",
+        "summary": "Describe the currently rendered Gantt chart.",
+        "description": "Returns a natural-language-friendly summary of the Gantt chart currently on the slide, including swim lane counts, total tasks, critical path length, and any at-risk tasks.",
+        "responses": {
+          "200": {
+            "description": "Summary returned",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/GanttSummary" }
+              }
+            }
+          }
+        }
+      }
+    }
+  },
+  "components": {
+    "schemas": {
+      "TaskInput": {
+        "type": "object",
+        "required": ["swimLane", "taskName"],
+        "properties": {
+          "swimLane": { "type": "string", "description": "Workstream / group the task belongs to." },
+          "taskName": { "type": "string", "description": "Human-readable task name." },
+          "type": {
+            "type": "string",
+            "enum": ["Task", "Milestone"],
+            "description": "Task or Milestone. Milestones have a single date; tasks have start and end."
+          },
+          "startDate": { "type": "string", "format": "date", "description": "ISO 8601 start date." },
+          "endDate": { "type": "string", "format": "date", "description": "ISO 8601 end date (tasks only)." },
+          "percentComplete": { "type": "number", "minimum": 0, "maximum": 100 },
+          "status": { "type": "string", "enum": ["On Track", "At Risk", "Delayed", "Complete", ""] },
+          "dependency": {
+            "type": "string",
+            "description": "Comma-separated predecessor task names, each optionally bracketed with dependency type e.g. 'Task A [FS+2d], Task B'."
+          },
+          "owner": { "type": "string" },
+          "notes": { "type": "string" }
+        }
+      },
+      "CreateGanttRequest": {
+        "type": "object",
+        "required": ["tasks"],
+        "properties": {
+          "projectName": { "type": "string", "description": "Optional project name shown in the slide title and exports." },
+          "tasks": {
+            "type": "array",
+            "items": { "$ref": "#/components/schemas/TaskInput" }
+          },
+          "templateKey": {
+            "type": "string",
+            "description": "Optional template to apply, e.g. 'standard', 'corporate', 'highContrast'."
+          }
+        }
+      },
+      "ImportFromM365Request": {
+        "type": "object",
+        "required": ["source"],
+        "properties": {
+          "source": {
+            "type": "string",
+            "enum": ["planner", "todo", "calendar", "onedrive", "sharepoint"]
+          },
+          "planId": { "type": "string", "description": "Planner plan ID (source=planner)." },
+          "listId": { "type": "string", "description": "To Do list ID (source=todo) or SharePoint list ID." },
+          "siteId": { "type": "string", "description": "SharePoint site ID." },
+          "driveItemId": { "type": "string", "description": "OneDrive file ID (source=onedrive)." },
+          "fromDate": { "type": "string", "format": "date-time", "description": "Calendar range start." },
+          "toDate": { "type": "string", "format": "date-time", "description": "Calendar range end." },
+          "templateKey": { "type": "string" }
+        }
+      },
+      "TaskUpdate": {
+        "type": "object",
+        "required": ["taskName"],
+        "properties": {
+          "taskName": { "type": "string", "description": "Task name to match (case-insensitive)." },
+          "newStartDate": { "type": "string", "format": "date" },
+          "newEndDate": { "type": "string", "format": "date" },
+          "newName": { "type": "string" },
+          "newStatus": { "type": "string", "enum": ["On Track", "At Risk", "Delayed", "Complete"] },
+          "newPercentComplete": { "type": "number", "minimum": 0, "maximum": 100 }
+        }
+      },
+      "UpdateTasksRequest": {
+        "type": "object",
+        "required": ["updates"],
+        "properties": {
+          "updates": {
+            "type": "array",
+            "items": { "$ref": "#/components/schemas/TaskUpdate" }
+          }
+        }
+      },
+      "UpdateTasksResponse": {
+        "type": "object",
+        "properties": {
+          "matched": { "type": "integer", "description": "Number of tasks matched by name." },
+          "updated": { "type": "integer", "description": "Number of tasks actually modified." },
+          "cascaded": { "type": "integer", "description": "Number of dependent tasks shifted by autoScheduler." },
+          "notFound": {
+            "type": "array",
+            "items": { "type": "string" },
+            "description": "Task names from the request that couldn't be matched."
+          }
+        }
+      },
+      "GanttSummary": {
+        "type": "object",
+        "properties": {
+          "projectName": { "type": "string" },
+          "swimLaneCount": { "type": "integer" },
+          "taskCount": { "type": "integer" },
+          "milestoneCount": { "type": "integer" },
+          "dependencyCount": { "type": "integer" },
+          "criticalPathLength": { "type": "integer" },
+          "startDate": { "type": "string", "format": "date" },
+          "endDate": { "type": "string", "format": "date" },
+          "atRiskTasks": {
+            "type": "array",
+            "items": { "type": "string" }
+          }
+        }
+      }
+    }
+  }
+}

@@ -1,0 +1,91 @@
+{
+  "$schema": "https://developer.microsoft.com/en-us/json-schemas/teams/v1.17/MicrosoftTeams.schema.json",
+  "manifestVersion": "1.17",
+  "version": "1.0.0",
+  "id": "00000000-0000-0000-0000-000000000000",
+  "packageName": "com.streamline.gantt",
+  "developer": {
+    "name": "Streamline",
+    "websiteUrl": "https://localhost:3000",
+    "privacyUrl": "https://localhost:3000/privacy",
+    "termsOfUseUrl": "https://localhost:3000/terms"
+  },
+  "icons": {
+    "color": "color.png",
+    "outline": "outline.png"
+  },
+  "name": {
+    "short": "Streamline",
+    "full": "Streamline Gantt"
+  },
+  "description": {
+    "short": "Share Gantt charts from Streamline in Teams and Copilot chats.",
+    "full": "Streamline is a PowerPoint add-in for building dynamic Gantt charts. This message extension lets you search your saved Streamline schedules and drop them into Teams messages or Microsoft 365 Copilot chats as interactive adaptive cards."
+  },
+  "accentColor": "#2B5CE6",
+  "composeExtensions": [
+    {
+      "botId": "00000000-0000-0000-0000-000000000000",
+      "canUpdateConfiguration": false,
+      "commands": [
+        {
+          "id": "searchGantts",
+          "type": "query",
+          "title": "Search Gantt charts",
+          "description": "Search Streamline schedules stored in OneDrive or SharePoint",
+          "initialRun": true,
+          "context": ["compose", "commandBox", "message"],
+          "parameters": [
+            {
+              "name": "query",
+              "title": "Query",
+              "description": "Search text - project name, swim lane, or task title",
+              "inputType": "text"
+            }
+          ]
+        },
+        {
+          "id": "createGanttFromMessage",
+          "type": "action",
+          "title": "Create Gantt from message",
+          "description": "Extract tasks from the selected message and build a Gantt chart",
+          "context": ["message"],
+          "fetchTask": true
+        },
+        {
+          "id": "summarizeGantt",
+          "type": "action",
+          "title": "Summarize a Gantt chart",
+          "description": "Paste summary stats for a stored Gantt chart into the current conversation",
+          "context": ["compose", "commandBox"],
+          "fetchTask": true,
+          "parameters": [
+            {
+              "name": "ganttId",
+              "title": "Gantt ID",
+              "description": "ID of a stored Gantt",
+              "inputType": "text"
+            }
+          ]
+        }
+      ],
+      "messageHandlers": []
+    }
+  ],
+  "permissions": ["identity", "messageTeamMembers"],
+  "validDomains": ["localhost", "*.azurewebsites.net"],
+  "webApplicationInfo": {
+    "id": "00000000-0000-0000-0000-000000000000",
+    "resource": "api://localhost:3000/00000000-0000-0000-0000-000000000000"
+  },
+  "authorization": {
+    "permissions": {
+      "resourceSpecific": [
+        {
+          "name": "FileContent.Read.Chat",
+          "type": "Delegated"
+        }
+      ]
+    }
+  }
+}

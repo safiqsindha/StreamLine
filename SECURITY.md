@@ -9,7 +9,7 @@ If you discover a security vulnerability in Streamline, **please do not open a p
 Send a private report via one of the following:
 
 - **GitHub Security Advisories** — preferred. Open a draft advisory at [Security → Advisories → Report a vulnerability](../../security/advisories/new) on this repository.
-- **Email** — `<security-contact-email>` (replace before publishing)
+- **Email** — `safiqsindha@gmail.com`
 
 Please include:
 

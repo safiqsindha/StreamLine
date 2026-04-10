@@ -1,0 +1,562 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Streamline</title>
+  <script src="https://appsforoffice.microsoft.com/lib/1.1/hosted/office.js"></script>
+</head>
+<body>
+  <div id="app">
+    <!-- Header -->
+    <div class="header">
+      <h1 class="logo">STREAMLINE</h1>
+      <p class="tagline">Gantt Chart Visualization</p>
+    </div>
+
+    <!-- Status Bar -->
+    <div id="status-bar" class="status-bar hidden">
+      <span id="status-icon"></span>
+      <span id="status-message"></span>
+    </div>
+
+    <!-- Tab Navigation -->
+    <div class="tab-bar">
+      <button class="tab active" data-tab="import">Import</button>
+      <button class="tab" data-tab="editor">Editor</button>
+      <button class="tab" data-tab="style">Style</button>
+      <button class="tab" data-tab="settings">Settings</button>
+    </div>
+
+    <!-- ═══ IMPORT TAB ═══ -->
+    <div class="tab-content active" id="tab-import">
+      <div class="section">
+        <label class="section-label">Data Source</label>
+        <div id="file-info" class="file-info hidden">
+          <span class="file-icon">&#128196;</span>
+          <span id="file-name" class="file-name"></span>
+        </div>
+
+        <button id="btn-import" class="btn btn-primary">
+          <span class="btn-icon">&#8593;</span>
+          Import Excel
+        </button>
+        <input type="file" id="file-input" accept=".xlsx,.xls" class="hidden" />
+
+        <button id="btn-import-mpp" class="btn btn-secondary">
+          <span class="btn-icon">&#128196;</span>
+          Import MS Project
+        </button>
+        <input type="file" id="mpp-input" accept=".xml,.mpp" class="hidden" />
+
+        <button id="btn-paste" class="btn btn-secondary">
+          <span class="btn-icon">&#128203;</span>
+          Paste from Clipboard
+        </button>
+
+        <button id="btn-refresh" class="btn btn-secondary" disabled>
+          <span class="btn-icon">&#8635;</span>
+          Refresh Timeline
+        </button>
+      </div>
+
+      <!-- Microsoft 365 / Copilot -->
+      <div class="section">
+        <label class="section-label">Microsoft 365</label>
+        <p class="section-hint">Sign in to import from Planner, To Do, OneDrive, SharePoint, and your calendar.</p>
+        <div id="m365-signed-out">
+          <button id="btn-m365-signin" class="btn btn-secondary">
+            <span class="btn-icon">&#128274;</span>
+            Sign in with Microsoft
+          </button>
+        </div>
+        <div id="m365-signed-in" class="hidden">
+          <div class="m365-user-row">
+            <span class="m365-user-icon">&#128100;</span>
+            <span id="m365-user-name" class="m365-user-name"></span>
+            <button id="btn-m365-signout" class="btn-link">Sign out</button>
+          </div>
+          <div class="setting-row">
+            <label class="setting-label">Source</label>
+            <select id="m365-source" class="select-sm input-wide">
+              <option value="planner">Planner</option>
+              <option value="todo">Microsoft To Do</option>
+              <option value="onedrive">OneDrive file</option>
+              <option value="sharepoint">SharePoint list</option>
+              <option value="calendar">Outlook calendar</option>
+            </select>
+          </div>
+          <button id="btn-m365-import" class="btn btn-primary">
+            <span class="btn-icon">&#8595;</span>
+            Import from M365
+          </button>
+        </div>
+      </div>
+
+      <!-- Copilot panel -->
+      <div class="section">
+        <label class="section-label">Copilot</label>
+        <p class="section-hint">Describe a project in natural language and Streamline will draft a Gantt.</p>
+        <textarea id="copilot-prompt" class="input-sm input-wide" rows="3"
+          placeholder="e.g. Product launch Q3 with Design, Engineering, QA, and Marketing swim lanes..."></textarea>
+        <button id="btn-copilot-generate" class="btn btn-primary" style="margin-top:6px">
+          <span class="btn-icon">&#9889;</span>
+          Generate with Copilot
+        </button>
+      </div>
+
+      <!-- Export -->
+      <div class="section">
+        <label class="section-label">Export</label>
+        <div class="btn-row">
+          <button id="btn-export-png" class="btn btn-secondary btn-half" disabled>PNG</button>
+          <button id="btn-export-jpg" class="btn btn-secondary btn-half" disabled>JPG</button>
+        </div>
+        <div class="btn-row" style="margin-top:6px">
+          <button id="btn-export-pdf" class="btn btn-secondary btn-half" disabled>PDF</button>
+          <button id="btn-export-mpp" class="btn btn-secondary btn-half" disabled>MS Project XML</button>
+        </div>
+      </div>
+
+      <!-- Stats -->
+      <div id="stats-panel" class="section hidden">
+        <label class="section-label">Chart Info</label>
+        <div class="stats-grid">
+          <div class="stat">
+            <span class="stat-value" id="stat-lanes">-</span>
+            <span class="stat-label">Swim Lanes</span>
+          </div>
+          <div class="stat">
+            <span class="stat-value" id="stat-tasks">-</span>
+            <span class="stat-label">Tasks</span>
+          </div>
+          <div class="stat">
+            <span class="stat-value" id="stat-milestones">-</span>
+            <span class="stat-label">Milestones</span>
+          </div>
+          <div class="stat">
+            <span class="stat-value" id="stat-deps">-</span>
+            <span class="stat-label">Dependencies</span>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ═══ EDITOR TAB ═══ -->
+    <div class="tab-content" id="tab-editor">
+      <div class="section">
+        <label class="section-label">Data Editor</label>
+        <p class="section-hint">Create or edit tasks directly. Changes apply on next Refresh.</p>
+        <div id="data-editor-container"></div>
+        <div class="btn-row" style="margin-top:8px">
+          <button id="btn-editor-generate" class="btn btn-primary btn-half">Generate</button>
+          <button id="btn-editor-clear" class="btn btn-ghost btn-half">Clear All</button>
+        </div>
+      </div>
+
+      <!-- Live Shape Editor (auto-populates on shape click) -->
+      <div class="section">
+        <label class="section-label">Live Shape Editor</label>
+        <div id="shape-empty-state" class="empty-state">
+          <p class="empty-state-icon">&#9654;</p>
+          <p class="empty-state-text">Click any task bar or milestone on the slide to edit it here.</p>
+        </div>
+        <div id="shape-edit-panel" class="shape-edit hidden">
+          <div class="shape-edit-header">
+            <span id="edit-shape-type-badge" class="badge">TASK</span>
+            <span id="edit-shape-id" class="shape-id">task_001</span>
+          </div>
+          <div class="setting-row">
+            <label class="setting-label">Name</label>
+            <input type="text" id="edit-shape-name" class="input-sm input-wide" />
+          </div>
+          <div class="setting-row">
+            <label class="setting-label">Start Date</label>
+            <input type="date" id="edit-shape-start" class="input-sm" />
+          </div>
+          <div id="edit-end-row" class="setting-row">
+            <label class="setting-label">End Date</label>
+            <input type="date" id="edit-shape-end" class="input-sm" />
+          </div>
+          <div class="setting-row">
+            <label class="setting-label">Status</label>
+            <select id="edit-shape-status" class="select-sm">
+              <option value="">-</option>
+              <option value="On Track">On Track</option>
+              <option value="At Risk">At Risk</option>
+              <option value="Delayed">Delayed</option>
+              <option value="Complete">Complete</option>
+            </select>
+          </div>
+          <div id="edit-pct-row" class="setting-row">
+            <label class="setting-label">% Complete</label>
+            <input type="range" id="edit-shape-pct" class="slider" min="0" max="100" value="0" />
+            <span id="edit-shape-pct-value" class="setting-value">0%</span>
+          </div>
+          <div class="setting-row">
+            <label class="setting-label">Color</label>
+            <input type="color" id="edit-shape-color" class="input-color" value="#5B7FC7" />
+          </div>
+          <div class="setting-row">
+            <label class="setting-label">Position</label>
+            <div class="pos-inputs">
+              <label class="pos-label">X</label>
+              <input type="number" id="edit-shape-x" class="input-xs" step="0.05" />
+              <label class="pos-label">Y</label>
+              <input type="number" id="edit-shape-y" class="input-xs" step="0.05" />
+            </div>
+          </div>
+          <button id="btn-apply-shape-edit" class="btn btn-primary">Apply Changes</button>
+
+          <!-- Contextual Actions (right-click menu alternative) -->
+          <div class="context-actions">
+            <button id="ctx-rename" class="ctx-btn" title="Rename">&#9998; Rename</button>
+            <button id="ctx-recolor" class="ctx-btn" title="Quick recolor">&#127912; Recolor</button>
+            <button id="ctx-delete" class="ctx-btn ctx-btn-danger" title="Delete this shape">&#10006; Delete</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- Drag Detection Status -->
+      <div class="section">
+        <label class="section-label">Shape Tracking</label>
+        <div class="toggle-row">
+          <label class="toggle-label">Track shape movement</label>
+          <input type="checkbox" id="opt-track-shapes" class="toggle" checked />
+        </div>
+        <p id="drag-status" class="section-hint">Tracking active. Drag a task bar to update its dates.</p>
+      </div>
+    </div>
+
+    <!-- ═══ STYLE TAB ═══ -->
+    <div class="tab-content" id="tab-style">
+      <div class="section">
+        <label class="section-label">Template</label>
+        <select id="template-category" class="select">
+          <option value="all">All Categories</option>
+          <option value="project-management">Project Management</option>
+          <option value="professional">Professional</option>
+          <option value="creative">Creative</option>
+          <option value="minimal">Minimal</option>
+          <option value="industry">Industry</option>
+        </select>
+        <select id="template-select" class="select">
+          <optgroup label="Project Management">
+            <option value="standard">Standard</option>
+          </optgroup>
+          <optgroup label="Professional">
+            <option value="highContrast">High Contrast</option>
+            <option value="corporate">Corporate</option>
+          </optgroup>
+          <optgroup label="Creative">
+            <option value="ocean">Ocean</option>
+            <option value="sunset">Sunset</option>
+            <option value="forest">Forest</option>
+            <option value="royal">Royal Purple</option>
+            <option value="pastel">Pastel</option>
+          </optgroup>
+          <optgroup label="Minimal">
+            <option value="minimal">Minimal</option>
+            <option value="slate">Slate</option>
+            <option value="darkMode">Dark Mode</option>
+          </optgroup>
+          <optgroup label="Industry">
+            <option value="crimson">Crimson</option>
+          </optgroup>
+        </select>
+
+        <div class="btn-row">
+          <button id="btn-import-template" class="btn btn-ghost btn-half">Import Theme</button>
+          <button id="btn-export-template" class="btn btn-ghost btn-half">Export Theme</button>
+        </div>
+        <input type="file" id="template-input" accept=".json" class="hidden" />
+      </div>
+
+      <!-- Task Label Configuration -->
+      <div class="section">
+        <label class="section-label">Task Labels</label>
+
+        <div class="setting-row">
+          <label class="setting-label">Position</label>
+          <div class="setting-control">
+            <select id="label-position" class="select-sm">
+              <option value="inside">Inside bar</option>
+              <option value="above">Above bar</option>
+              <option value="below">Below bar</option>
+              <option value="left">Left of bar</option>
+              <option value="right">Right of bar</option>
+            </select>
+          </div>
+        </div>
+
+        <div class="setting-row">
+          <label class="setting-label">Alignment</label>
+          <div class="setting-control">
+            <select id="label-align" class="select-sm">
+              <option value="left">Left</option>
+              <option value="center">Center</option>
+              <option value="right">Right</option>
+            </select>
+          </div>
+        </div>
+
+        <div class="toggle-row">
+          <label class="toggle-label">Show dates in label</label>
+          <input type="checkbox" id="label-show-dates" class="toggle" />
+        </div>
+        <div class="toggle-row">
+          <label class="toggle-label">Show owner in label</label>
+          <input type="checkbox" id="label-show-owner" class="toggle" />
+        </div>
+
+        <!-- Per-element text formatting -->
+        <label class="sublabel">Text Formatting</label>
+        <div class="text-style-grid">
+          <div class="text-style-row">
+            <span class="ts-label">Swim Lanes</span>
+            <div class="ts-toggles">
+              <button class="ts-btn" data-element="swimLaneLabel" data-style="bold" title="Bold"><b>B</b></button>
+              <button class="ts-btn" data-element="swimLaneLabel" data-style="italic" title="Italic"><i>I</i></button>
+              <button class="ts-btn" data-element="swimLaneLabel" data-style="underline" title="Underline"><u>U</u></button>
+            </div>
+          </div>
+          <div class="text-style-row">
+            <span class="ts-label">Task Labels</span>
+            <div class="ts-toggles">
+              <button class="ts-btn" data-element="taskLabel" data-style="bold" title="Bold"><b>B</b></button>
+              <button class="ts-btn" data-element="taskLabel" data-style="italic" title="Italic"><i>I</i></button>
+              <button class="ts-btn" data-element="taskLabel" data-style="underline" title="Underline"><u>U</u></button>
+            </div>
+          </div>
+          <div class="text-style-row">
+            <span class="ts-label">Milestones</span>
+            <div class="ts-toggles">
+              <button class="ts-btn" data-element="milestoneLabel" data-style="bold" title="Bold"><b>B</b></button>
+              <button class="ts-btn" data-element="milestoneLabel" data-style="italic" title="Italic"><i>I</i></button>
+              <button class="ts-btn" data-element="milestoneLabel" data-style="underline" title="Underline"><u>U</u></button>
+            </div>
+          </div>
+          <div class="text-style-row">
+            <span class="ts-label">Year Axis</span>
+            <div class="ts-toggles">
+              <button class="ts-btn" data-element="yearLabel" data-style="bold" title="Bold"><b>B</b></button>
+              <button class="ts-btn" data-element="yearLabel" data-style="italic" title="Italic"><i>I</i></button>
+              <button class="ts-btn" data-element="yearLabel" data-style="underline" title="Underline"><u>U</u></button>
+            </div>
+          </div>
+          <div class="text-style-row">
+            <span class="ts-label">Month Axis</span>
+            <div class="ts-toggles">
+              <button class="ts-btn" data-element="monthLabel" data-style="bold" title="Bold"><b>B</b></button>
+              <button class="ts-btn" data-element="monthLabel" data-style="italic" title="Italic"><i>I</i></button>
+              <button class="ts-btn" data-element="monthLabel" data-style="underline" title="Underline"><u>U</u></button>
+            </div>
+          </div>
+          <div class="text-style-row">
+            <span class="ts-label">Duration</span>
+            <div class="ts-toggles">
+              <button class="ts-btn" data-element="durationLabel" data-style="bold" title="Bold"><b>B</b></button>
+              <button class="ts-btn" data-element="durationLabel" data-style="italic" title="Italic"><i>I</i></button>
+              <button class="ts-btn" data-element="durationLabel" data-style="underline" title="Underline"><u>U</u></button>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="section">
+        <label class="section-label">Style Mode</label>
+        <div class="setting-row">
+          <label class="setting-label">Bar Style</label>
+          <div class="setting-control">
+            <select id="style-mode" class="select-sm">
+              <option value="flat">Flat</option>
+              <option value="3d">3D / Gel</option>
+            </select>
+          </div>
+        </div>
+      </div>
+
+      <div class="section">
+        <label class="section-label">Visual Options</label>
+
+        <div class="toggle-row">
+          <label class="toggle-label">Today Marker</label>
+          <input type="checkbox" id="opt-today" class="toggle" checked />
+        </div>
+        <div class="toggle-row">
+          <label class="toggle-label">Elapsed Time Shading</label>
+          <input type="checkbox" id="opt-elapsed" class="toggle" checked />
+        </div>
+        <div class="toggle-row">
+          <label class="toggle-label">Duration Labels</label>
+          <input type="checkbox" id="opt-duration" class="toggle" checked />
+        </div>
+        <div class="toggle-row">
+          <label class="toggle-label">% Complete Bars</label>
+          <input type="checkbox" id="opt-percent" class="toggle" checked />
+        </div>
+        <div class="toggle-row">
+          <label class="toggle-label">Planned vs. Actual Baselines</label>
+          <input type="checkbox" id="opt-baselines" class="toggle" checked />
+        </div>
+      </div>
+    </div>
+
+    <!-- ═══ SETTINGS TAB ═══ -->
+    <div class="tab-content" id="tab-settings">
+      <div class="section">
+        <label class="section-label">Timescale</label>
+
+        <div class="setting-row">
+          <label class="setting-label">Tiers</label>
+          <div class="setting-control">
+            <select id="timescale-tiers" class="select-sm">
+              <option value="1">1 (Years only)</option>
+              <option value="2">2 (Years + Months)</option>
+              <option value="3" selected>3 (Years + Months + Weeks)</option>
+            </select>
+          </div>
+        </div>
+
+        <div class="setting-row">
+          <label class="setting-label">Granularity</label>
+          <div class="setting-control">
+            <select id="timescale-granularity" class="select-sm">
+              <option value="auto" selected>Auto</option>
+              <option value="hours">Hours</option>
+              <option value="days">Days</option>
+              <option value="weeks">Weeks</option>
+            </select>
+          </div>
+        </div>
+
+        <div class="setting-row">
+          <label class="setting-label">Fiscal Year Start</label>
+          <div class="setting-control">
+            <select id="fiscal-year" class="select-sm">
+              <option value="1" selected>January</option>
+              <option value="2">February</option>
+              <option value="3">March</option>
+              <option value="4">April</option>
+              <option value="5">May</option>
+              <option value="6">June</option>
+              <option value="7">July</option>
+              <option value="8">August</option>
+              <option value="9">September</option>
+              <option value="10">October</option>
+              <option value="11">November</option>
+              <option value="12">December</option>
+            </select>
+          </div>
+        </div>
+
+        <div class="setting-row">
+          <label class="setting-label">FY Label Format</label>
+          <div class="setting-control">
+            <select id="fy-label-format" class="select-sm">
+              <option value="end" selected>FY2026 (end year)</option>
+              <option value="start">FY2025 (start year)</option>
+              <option value="both">FY2025/26 (both)</option>
+            </select>
+          </div>
+        </div>
+
+        <div class="setting-row">
+          <label class="setting-label">FY Prefix</label>
+          <div class="setting-control">
+            <input type="text" id="fy-prefix" class="input-xs" value="FY" maxlength="6" />
+          </div>
+        </div>
+      </div>
+
+      <!-- Working Days / Weekend Highlighting -->
+      <div class="section">
+        <label class="section-label">Working Days</label>
+
+        <div class="setting-row">
+          <label class="setting-label">Preset</label>
+          <div class="setting-control">
+            <select id="working-days-preset" class="select-sm">
+              <option value="standard" selected>Mon-Fri</option>
+              <option value="sixDay">Mon-Sat</option>
+              <option value="sevenDay">All 7 days</option>
+              <option value="middleEast">Sun-Thu</option>
+              <option value="fourDay">Mon-Thu</option>
+              <option value="custom">Custom</option>
+            </select>
+          </div>
+        </div>
+
+        <div id="custom-days-row" class="day-toggles hidden">
+          <button class="day-toggle" data-day="0">S</button>
+          <button class="day-toggle active" data-day="1">M</button>
+          <button class="day-toggle active" data-day="2">T</button>
+          <button class="day-toggle active" data-day="3">W</button>
+          <button class="day-toggle active" data-day="4">T</button>
+          <button class="day-toggle active" data-day="5">F</button>
+          <button class="day-toggle" data-day="6">S</button>
+        </div>
+
+        <div class="toggle-row">
+          <label class="toggle-label">Highlight non-working days</label>
+          <input type="checkbox" id="highlight-weekends" class="toggle" />
+        </div>
+      </div>
+
+      <div class="section">
+        <label class="section-label">Layout</label>
+
+        <div class="setting-row">
+          <label class="setting-label">Render Width</label>
+          <div class="setting-control">
+            <input type="range" id="render-width" min="50" max="100" value="75" class="slider" />
+            <span id="render-width-value" class="setting-value">75%</span>
+          </div>
+        </div>
+
+        <div class="setting-row">
+          <label class="setting-label">Sort Tasks By</label>
+          <div class="setting-control">
+            <select id="sort-by" class="select-sm">
+              <option value="default">Default (import order)</option>
+              <option value="startDate">Start Date</option>
+              <option value="endDate">End Date</option>
+              <option value="name">Name</option>
+              <option value="status">Status</option>
+            </select>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Error Panel -->
+    <div id="error-panel" class="section hidden">
+      <label class="section-label error-label">Issues</label>
+      <ul id="error-list" class="error-list"></ul>
+    </div>
+
+    <!-- Warning Panel -->
+    <div id="warning-panel" class="section hidden">
+      <label class="section-label warning-label">Warnings</label>
+      <ul id="warning-list" class="warning-list"></ul>
+    </div>
+
+    <!-- Keyboard Shortcuts Modal (hidden by default) -->
+    <div id="shortcuts-modal" class="shortcuts-modal hidden">
+      <div class="shortcuts-dialog">
+        <div class="shortcuts-header">
+          <h3>Keyboard Shortcuts</h3>
+          <button id="btn-close-shortcuts" class="btn-close">&times;</button>
+        </div>
+        <div id="shortcuts-list" class="shortcuts-list"></div>
+      </div>
+    </div>
+
+    <!-- Footer -->
+    <div class="footer">
+      <button id="btn-shortcuts" class="btn-link">Keyboard Shortcuts (Ctrl+/)</button>
+      <span>Streamline v2.1</span>
+    </div>
+  </div>
+</body>
+</html>

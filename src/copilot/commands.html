@@ -1,0 +1,30 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>Streamline Commands</title>
+  <!-- Office JS must load before any add-in code -->
+  <script src="https://appsforoffice.microsoft.com/lib/1.1/hosted/office.js"></script>
+</head>
+<body>
+  <!--
+    This is the Function File for Streamline. It runs invisibly in a hidden
+    iframe whenever Copilot or a ribbon command invokes one of the Streamline
+    function commands. It MUST NOT render any UI - that's what the taskpane
+    is for. It loads functionCommands.js and registers every command with
+    Office.actions.associate() so the manifest keys resolve at runtime.
+  -->
+  <script>
+    Office.onReady(function () {
+      // The webpack build emits functionCommands.js as a separate bundle
+      // with a named entry; we require it here to trigger registration.
+      try {
+        require("./functionCommands").registerCommands();
+        console.log("Streamline command functions registered.");
+      } catch (err) {
+        console.error("Failed to register Streamline commands:", err);
+      }
+    });
+  </script>
+</body>
+</html>

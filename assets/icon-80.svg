@@ -1,0 +1,12 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="80" height="80" viewBox="0 0 80 80">
+  <rect x="0" y="0" width="80" height="80" rx="8" fill="#1F4E79"/>
+  <!-- Gantt bars -->
+  <rect x="12" y="15" width="32" height="7" rx="3" fill="#FFFFFF" opacity="0.9"/>
+  <rect x="22" y="28" width="40" height="7" rx="3" fill="#5B7FC7"/>
+  <rect x="12" y="41" width="48" height="7" rx="3" fill="#FFFFFF" opacity="0.6"/>
+  <rect x="18" y="54" width="36" height="7" rx="3" fill="#5B7FC7" opacity="0.7"/>
+  <!-- Milestone diamond -->
+  <polygon points="66,19 70,24 66,29 62,24" fill="#7B68EE"/>
+  <!-- Dependency line -->
+  <line x1="44" y1="19" x2="62" y2="24" stroke="#FFFFFF" stroke-width="1.5" opacity="0.4"/>
+</svg>

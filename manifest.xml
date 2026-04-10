@@ -1,0 +1,191 @@
+<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<OfficeApp
+  xmlns="http://schemas.microsoft.com/office/appforoffice/1.1"
+  xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+  xmlns:bt="http://schemas.microsoft.com/office/officeappbasictypes/1.0"
+  xmlns:ov="http://schemas.microsoft.com/office/taskpaneappversionoverrides"
+  xsi:type="TaskPaneApp">
+
+  <Id>a1b2c3d4-e5f6-7890-abcd-ef1234567890</Id>
+  <Version>1.0.0.0</Version>
+  <ProviderName>Streamline</ProviderName>
+  <DefaultLocale>en-US</DefaultLocale>
+  <DisplayName DefaultValue="Streamline" />
+  <Description DefaultValue="Dynamic Gantt Chart Visualization for PowerPoint" />
+  <IconUrl DefaultValue="https://localhost:3000/assets/icon-32.png" />
+  <HighResolutionIconUrl DefaultValue="https://localhost:3000/assets/icon-64.png" />
+  <SupportUrl DefaultValue="https://localhost:3000" />
+
+  <Hosts>
+    <Host Name="Presentation" />
+  </Hosts>
+
+  <DefaultSettings>
+    <SourceLocation DefaultValue="https://localhost:3000/taskpane.html" />
+  </DefaultSettings>
+
+  <Permissions>ReadWriteDocument</Permissions>
+
+  <VersionOverrides xmlns="http://schemas.microsoft.com/office/taskpaneappversionoverrides" xsi:type="VersionOverridesV1_0">
+    <Hosts>
+      <Host xsi:type="Presentation">
+        <DesktopFormFactor>
+          <GetStarted>
+            <Title resid="GetStarted.Title" />
+            <Description resid="GetStarted.Description" />
+            <LearnMoreUrl resid="GetStarted.LearnMoreUrl" />
+          </GetStarted>
+
+          <!--
+            FunctionFile hosts the hidden command runtime. Office loads the URL
+            in an invisible iframe; it runs functionCommands.js and registers
+            every command via Office.actions.associate(). Copilot for PowerPoint
+            invokes these commands when the user asks the host to modify the
+            Gantt chart ("refresh the Streamline chart", "add a milestone",
+            "switch to dark mode", etc.). The commands never render UI - they
+            operate on the active slide and surface results via notifications.
+          -->
+          <FunctionFile resid="Commands.Url" />
+
+          <ExtensionPoint xsi:type="PrimaryCommandSurface">
+            <OfficeTab id="TabHome">
+              <Group id="StreamlineGroup">
+                <Label resid="StreamlineGroup.Label" />
+                <Icon>
+                  <bt:Image size="16" resid="Icon.16x16" />
+                  <bt:Image size="32" resid="Icon.32x32" />
+                  <bt:Image size="80" resid="Icon.80x80" />
+                </Icon>
+
+                <Control xsi:type="Button" id="StreamlineButton">
+                  <Label resid="StreamlineButton.Label" />
+                  <Supertip>
+                    <Title resid="StreamlineButton.Label" />
+                    <Description resid="StreamlineButton.Tooltip" />
+                  </Supertip>
+                  <Icon>
+                    <bt:Image size="16" resid="Icon.16x16" />
+                    <bt:Image size="32" resid="Icon.32x32" />
+                    <bt:Image size="80" resid="Icon.80x80" />
+                  </Icon>
+                  <Action xsi:type="ShowTaskpane">
+                    <TaskpaneId>StreamlineTaskPane</TaskpaneId>
+                    <SourceLocation resid="Taskpane.Url" />
+                  </Action>
+                </Control>
+
+                <!--
+                  Function-command buttons below trigger headless actions via
+                  the FunctionFile (commands.html). Copilot for PowerPoint
+                  also addresses these by FunctionName when the user asks the
+                  host to perform the equivalent operation in natural
+                  language - e.g. "Streamline, refresh the Gantt chart".
+                -->
+                <Control xsi:type="Button" id="StreamlineRefreshButton">
+                  <Label resid="RefreshButton.Label" />
+                  <Supertip>
+                    <Title resid="RefreshButton.Label" />
+                    <Description resid="RefreshButton.Tooltip" />
+                  </Supertip>
+                  <Icon>
+                    <bt:Image size="16" resid="Icon.16x16" />
+                    <bt:Image size="32" resid="Icon.32x32" />
+                    <bt:Image size="80" resid="Icon.80x80" />
+                  </Icon>
+                  <Action xsi:type="ExecuteFunction">
+                    <FunctionName>refreshGantt</FunctionName>
+                  </Action>
+                </Control>
+
+                <Control xsi:type="Button" id="StreamlineTodayButton">
+                  <Label resid="TodayButton.Label" />
+                  <Supertip>
+                    <Title resid="TodayButton.Label" />
+                    <Description resid="TodayButton.Tooltip" />
+                  </Supertip>
+                  <Icon>
+                    <bt:Image size="16" resid="Icon.16x16" />
+                    <bt:Image size="32" resid="Icon.32x32" />
+                    <bt:Image size="80" resid="Icon.80x80" />
+                  </Icon>
+                  <Action xsi:type="ExecuteFunction">
+                    <FunctionName>toggleTodayMarker</FunctionName>
+                  </Action>
+                </Control>
+
+                <Control xsi:type="Button" id="StreamlineExportButton">
+                  <Label resid="ExportButton.Label" />
+                  <Supertip>
+                    <Title resid="ExportButton.Label" />
+                    <Description resid="ExportButton.Tooltip" />
+                  </Supertip>
+                  <Icon>
+                    <bt:Image size="16" resid="Icon.16x16" />
+                    <bt:Image size="32" resid="Icon.32x32" />
+                    <bt:Image size="80" resid="Icon.80x80" />
+                  </Icon>
+                  <Action xsi:type="ExecuteFunction">
+                    <FunctionName>exportPng</FunctionName>
+                  </Action>
+                </Control>
+              </Group>
+            </OfficeTab>
+          </ExtensionPoint>
+        </DesktopFormFactor>
+      </Host>
+    </Hosts>
+
+    <Resources>
+      <bt:Images>
+        <bt:Image id="Icon.16x16" DefaultValue="https://localhost:3000/assets/icon-16.png" />
+        <bt:Image id="Icon.32x32" DefaultValue="https://localhost:3000/assets/icon-32.png" />
+        <bt:Image id="Icon.80x80" DefaultValue="https://localhost:3000/assets/icon-80.png" />
+      </bt:Images>
+      <bt:Urls>
+        <bt:Url id="GetStarted.LearnMoreUrl" DefaultValue="https://localhost:3000" />
+        <bt:Url id="Taskpane.Url" DefaultValue="https://localhost:3000/taskpane.html" />
+        <bt:Url id="Commands.Url" DefaultValue="https://localhost:3000/commands.html" />
+      </bt:Urls>
+      <bt:ShortStrings>
+        <bt:String id="GetStarted.Title" DefaultValue="Get started with Streamline" />
+        <bt:String id="StreamlineGroup.Label" DefaultValue="Streamline" />
+        <bt:String id="StreamlineButton.Label" DefaultValue="Streamline" />
+        <bt:String id="RefreshButton.Label" DefaultValue="Refresh" />
+        <bt:String id="TodayButton.Label" DefaultValue="Today Line" />
+        <bt:String id="ExportButton.Label" DefaultValue="Export PNG" />
+      </bt:ShortStrings>
+      <bt:LongStrings>
+        <bt:String id="GetStarted.Description" DefaultValue="Import Excel schedules and generate dynamic Gantt charts directly in PowerPoint." />
+        <bt:String id="StreamlineButton.Tooltip" DefaultValue="Open Streamline to create and manage Gantt charts" />
+        <bt:String id="RefreshButton.Tooltip" DefaultValue="Re-render the current Gantt chart from its data source" />
+        <bt:String id="TodayButton.Tooltip" DefaultValue="Toggle the today vertical marker line" />
+        <bt:String id="ExportButton.Tooltip" DefaultValue="Export the current Gantt chart as a PNG image" />
+      </bt:LongStrings>
+    </Resources>
+
+    <!--
+      WebApplicationInfo enables Office SSO (Office.auth.getAccessToken) and
+      delegated Microsoft Graph access. The Id below is the Azure AD
+      Application (client) ID of Streamline's Entra registration - replace it
+      with your own when deploying. The Resource URI must match the App ID URI
+      configured on that Entra app (typically api://<host>/<clientId>). Scopes
+      declared here are the subset requested at the API level; Graph scopes
+      are negotiated through the registered Entra app's API permissions.
+    -->
+    <WebApplicationInfo>
+      <Id>00000000-0000-0000-0000-000000000000</Id>
+      <Resource>api://localhost:3000/00000000-0000-0000-0000-000000000000</Resource>
+      <Scopes>
+        <Scope>User.Read</Scope>
+        <Scope>Tasks.Read</Scope>
+        <Scope>Tasks.ReadWrite</Scope>
+        <Scope>Files.Read</Scope>
+        <Scope>Files.Read.All</Scope>
+        <Scope>Sites.Read.All</Scope>
+        <Scope>Calendars.Read</Scope>
+        <Scope>profile</Scope>
+        <Scope>openid</Scope>
+      </Scopes>
+    </WebApplicationInfo>
+  </VersionOverrides>
+</OfficeApp>

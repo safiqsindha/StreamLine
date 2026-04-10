@@ -1,0 +1,36 @@
+{
+  "name": "streamline",
+  "version": "2.0.0",
+  "description": "PowerPoint Add-in for Dynamic Gantt Chart Visualization",
+  "main": "src/index.js",
+  "scripts": {
+    "build": "webpack --mode production",
+    "dev": "webpack serve --mode development",
+    "start": "npm run dev",
+    "start:desktop": "office-addin-debugging start manifest.xml desktop",
+    "stop": "office-addin-debugging stop manifest.xml",
+    "validate": "npx office-addin-manifest validate manifest.xml",
+    "icons": "node scripts/generate-icons.js",
+    "test": "node test/test.js",
+    "test:data": "node test/generateTestData.js",
+    "lint": "eslint src/"
+  },
+  "dependencies": {
+    "xlsx": "^0.18.5"
+  },
+  "devDependencies": {
+    "@babel/core": "^7.24.0",
+    "@babel/preset-env": "^7.24.0",
+    "babel-loader": "^9.1.3",
+    "copy-webpack-plugin": "^12.0.2",
+    "css-loader": "^6.10.0",
+    "html-webpack-plugin": "^5.6.0",
+    "office-addin-debugging": "^6.0.7",
+    "office-addin-dev-certs": "^2.0.7",
+    "style-loader": "^3.3.4",
+    "webpack": "^5.90.0",
+    "webpack-cli": "^5.1.4",
+    "webpack-dev-server": "^5.0.0"
+  },
+  "license": "UNLICENSED"
+}

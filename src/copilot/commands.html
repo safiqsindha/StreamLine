@@ -14,17 +14,6 @@
     is for. It loads functionCommands.js and registers every command with
     Office.actions.associate() so the manifest keys resolve at runtime.
   -->
-  <script>
-    Office.onReady(function () {
-      // The webpack build emits functionCommands.js as a separate bundle
-      // with a named entry; we require it here to trigger registration.
-      try {
-        require("./functionCommands").registerCommands();
-        console.log("Streamline command functions registered.");
-      } catch (err) {
-        console.error("Failed to register Streamline commands:", err);
-      }
-    });
-  </script>
+  <!-- Registration happens in commands.bundle.js (built from commandsEntry.js) -->
 </body>
 </html>

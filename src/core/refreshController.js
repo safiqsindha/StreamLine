@@ -96,16 +96,20 @@ class RefreshController {
    */
   async refresh(excelArrayBuffer, config = {}) {
     const data = excelArrayBuffer || this.lastExcelData;
-    if (!data) {
-      return {
-        success: false,
-        phase: "refresh",
-        errors: ["No Excel data available. Please import a file first."],
-        warnings: [],
-      };
+    if (data) {
+      return this.generate(data, this.linkedFileName, config);
     }
 
-    return this.generate(data, this.linkedFileName, config);
+    if (this._lastRows) {
+      return this.generateFromRows(this._lastRows, this.linkedFileName, config);
+    }
+
+    return {
+      success: false,
+      phase: "refresh",
+      errors: ["No data available. Please import a file first."],
+      warnings: [],
+    };
   }
 
   /**

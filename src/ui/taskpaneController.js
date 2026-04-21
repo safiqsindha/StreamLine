@@ -508,6 +508,7 @@ class TaskPaneController {
         );
         if (result.success) {
           this.lastLayout = result.layout;
+          this.lastTasks = result.tasks;
           this.reverseMapper = shapeInteraction.createReverseMapper(
             this.lastLayout.ganttArea,
             this.lastLayout.dateRange
@@ -694,6 +695,7 @@ class TaskPaneController {
         this.el.btnRefresh.disabled = false;
         this.enableExport();
         this.showStats(result.stats);
+        this.showWarnings(result.warnings);
         this.lastLayout = result.layout || null;
         this.lastTasks = result.tasks || null;
         if (this.el.optTrackShapes.checked) this.startShapeTracking();
@@ -1029,6 +1031,7 @@ class TaskPaneController {
         context
       );
       this.lastLayout = this.refreshController.lastLayout;
+      this.lastTasks = context.lastTasks || this.lastTasks;
       this.el.btnRefresh.disabled = false;
       this.enableExport();
       this.showStats({

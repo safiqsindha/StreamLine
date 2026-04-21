@@ -473,7 +473,8 @@ async function renderGantt(layout) {
 // ── Shape Helper Functions ──
 
 async function addRectangle(shapes, opts) {
-  const shape = shapes.addGeometricShape("Rectangle", {
+  const shapeType = (opts.cornerRadius && opts.cornerRadius > 0) ? "RoundedRectangle" : "Rectangle";
+  const shape = shapes.addGeometricShape(shapeType, {
     left: opts.left,
     top: opts.top,
     width: opts.width,
@@ -554,7 +555,9 @@ async function addTextBox(shapes, opts) {
 }
 
 async function addLine(shapes, opts) {
-  const shape = shapes.addLine("Straight", {
+  // addConnector("Straight", geometry) is the correct Office JS API for line shapes.
+  // shapes.addLine() takes four numeric coordinates (x1,y1,x2,y2), not a connector type.
+  const shape = shapes.addConnector("Straight", {
     left: Math.min(opts.x1, opts.x2),
     top: Math.min(opts.y1, opts.y2),
     width: Math.abs(opts.x2 - opts.x1) || 0.001,

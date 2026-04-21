@@ -58,6 +58,7 @@ async function createGantt(req, context) {
     throw err;
   }
 
+  context.lastTasks = result.tasks;
   return summarizeLayout(result, req.projectName || "Copilot Gantt");
 }
 
@@ -120,6 +121,7 @@ async function importFromM365(req, context) {
       if (!result.success) {
         throw new Error(`OneDrive import failed: ${(result.errors || []).join("; ")}`);
       }
+      context.lastTasks = result.tasks;
       return summarizeLayout(result, req.fileName || "OneDrive import");
     }
     case "sharepoint": {
@@ -145,6 +147,7 @@ async function importFromM365(req, context) {
   if (!result.success) {
     throw new Error(`Import failed: ${(result.errors || []).join("; ")}`);
   }
+  context.lastTasks = result.tasks;
   return summarizeLayout(result, label);
 }
 

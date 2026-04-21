@@ -4,6 +4,9 @@
  * Shortcuts only fire when the task pane has focus (not when typing in inputs).
  */
 
+const IS_MAC = typeof navigator !== "undefined" &&
+  /Mac|iPhone|iPad|iPod/.test(navigator.platform || navigator.userAgent || "");
+
 const SHORTCUTS = [
   {
     key: "i",
@@ -181,7 +184,10 @@ class KeyboardShortcutManager {
     if (e.key.toLowerCase() !== shortcut.key.toLowerCase()) return false;
 
     // Check modifiers
-    const hasCtrl = e.ctrlKey || e.metaKey;
+    // On macOS, only Ctrl (not Cmd) triggers our shortcuts so we don't
+    // hijack system Cmd+R (reload), Cmd+P (print), Cmd+N (new window), etc.
+    // On other platforms either Ctrl or Cmd works.
+    const hasCtrl = IS_MAC ? e.ctrlKey : (e.ctrlKey || e.metaKey);
     const hasShift = e.shiftKey;
     const hasAlt = e.altKey;
 
@@ -204,9 +210,16 @@ class KeyboardShortcutManager {
    */
   getShortcutList() {
     return SHORTCUTS.map((s) => ({
-      keys: s.display,
+      keys: IS_MAC ? this._displayForMac(s.display) : s.display,
       description: s.description,
     }));
+  }
+
+  _displayForMac(display) {
+    return display
+      .replace(/Ctrl/g, "⌃")
+      .replace(/Shift/g, "⇧")
+      .replace(/Alt/g, "⌥");
   }
 }
 

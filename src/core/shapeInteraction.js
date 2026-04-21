@@ -397,8 +397,10 @@ async function deleteShapeGroup(taskId) {
     await context.sync();
 
     const toDelete = [];
+    const targetId = String(taskId);
     for (const shape of shapes.items) {
-      if (shape.name && shape.name.includes(`:${taskId}`)) {
+      const parts = parseTag(shape.name);
+      if (parts && parts.id === targetId) {
         toDelete.push(shape);
       }
     }

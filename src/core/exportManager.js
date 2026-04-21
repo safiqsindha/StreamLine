@@ -345,28 +345,31 @@ function downloadPDF(layout, template, filename = "streamline_gantt.pdf", opts =
 
   // Open in new window for printing as PDF
   const printWin = window.open("", "_blank");
-  if (printWin) {
-    printWin.document.write(`
-      <!DOCTYPE html>
-      <html>
-      <head>
-        <title>${filename}</title>
-        <style>
-          @page { size: landscape; margin: 0; }
-          body { margin: 0; display: flex; justify-content: center; align-items: center; }
-          img { width: 100%; height: auto; }
-        </style>
-      </head>
-      <body>
-        <img src="${imgData}" />
-        <script>
-          window.onload = function() { window.print(); };
-        </script>
-      </body>
-      </html>
-    `);
-    printWin.document.close();
+  if (!printWin) {
+    throw new Error(
+      "PDF export was blocked by the browser. Allow pop-ups for this add-in, or use Export PNG/JPG instead."
+    );
   }
+  printWin.document.write(`
+    <!DOCTYPE html>
+    <html>
+    <head>
+      <title>${filename}</title>
+      <style>
+        @page { size: landscape; margin: 0; }
+        body { margin: 0; display: flex; justify-content: center; align-items: center; }
+        img { width: 100%; height: auto; }
+      </style>
+    </head>
+    <body>
+      <img src="${imgData}" />
+      <script>
+        window.onload = function() { window.print(); };
+      </script>
+    </body>
+    </html>
+  `);
+  printWin.document.close();
 }
 
 module.exports = {

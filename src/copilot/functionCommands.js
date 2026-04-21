@@ -156,16 +156,18 @@ async function toggleTodayMarker(event) {
 async function exportPng(event) {
   try {
     if (!_lastLayout) {
-      await showNotification("No chart to export.", "warning");
+      await showNotification("No chart to export. Open Streamline and create one first.", "warning");
       event.completed();
       return;
     }
-    // Function commands can't access the DOM directly; we signal the task
-    // pane to perform the export.
-    if (typeof Office !== "undefined" && Office.context && Office.context.ui && Office.context.ui.messageParent) {
-      Office.context.ui.messageParent(JSON.stringify({ command: "exportPng" }));
-    }
-    await showNotification("Exporting PNG...", "info");
+    // Function commands run in a hidden iframe with no DOM access and no
+    // reliable cross-frame channel back to the task pane, so we can't
+    // trigger a download here. Direct the user to the task pane export
+    // button (Ctrl+Shift+S) which performs the same operation.
+    await showNotification(
+      "Open the Streamline task pane and click Export PNG (or press Ctrl+Shift+S).",
+      "info"
+    );
   } catch (err) {
     await showNotification(`Export error: ${err.message}`, "error");
   }

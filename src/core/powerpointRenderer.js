@@ -534,13 +534,23 @@ async function addTextBox(shapes, opts) {
     textRange.font.underline = "Single";
   }
 
-  const paragraph = shape.textFrame.textRange.paragraphs.getItemAt(0);
-  if (opts.alignment === "center") {
-    paragraph.horizontalAlignment = "Center";
-  } else if (opts.alignment === "right") {
-    paragraph.horizontalAlignment = "Right";
-  } else {
-    paragraph.horizontalAlignment = "Left";
+  // PowerPoint for Mac's current Office.js build returns undefined for
+  // textRange.paragraphs on a just-added text box. Alignment is a visual
+  // nicety, so fall back to default (left) if the API isn't available.
+  try {
+    const paragraphs = shape.textFrame.textRange.paragraphs;
+    if (paragraphs && typeof paragraphs.getItemAt === "function") {
+      const paragraph = paragraphs.getItemAt(0);
+      if (opts.alignment === "center") {
+        paragraph.horizontalAlignment = "Center";
+      } else if (opts.alignment === "right") {
+        paragraph.horizontalAlignment = "Right";
+      } else {
+        paragraph.horizontalAlignment = "Left";
+      }
+    }
+  } catch (_) {
+    // Alignment API not available on this host; render with default alignment.
   }
 
   if (opts.verticalAlignment === "middle") {

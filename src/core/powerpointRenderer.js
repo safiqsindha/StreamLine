@@ -24,6 +24,12 @@ const MILESTONE_SHAPE_MAP = {
 
 /**
  * Render the full Gantt chart layout onto the active PowerPoint slide.
+ *
+ * Each major phase below is wrapped in runPhase() which re-throws with the
+ * phase name and, if applicable, the shape tag/context. This makes it
+ * possible to debug Mac PowerPoint's InvalidArgument etc. errors without
+ * attaching a debugger — the task pane status bar shows the phase and
+ * shape that failed.
  */
 async function renderGantt(layout) {
   await PowerPoint.run(async (context) => {
@@ -31,38 +37,43 @@ async function renderGantt(layout) {
     const shapes = slide.shapes;
 
     // ── Weekend Highlighting (behind everything) ──
-    if (layout.weekendShading && layout.weekendShading.length > 0) {
-      let wkIdx = 0;
-      for (const wk of layout.weekendShading) {
+    await runPhase("weekendShading", async () => {
+      if (layout.weekendShading && layout.weekendShading.length > 0) {
+        let wkIdx = 0;
+        for (const wk of layout.weekendShading) {
+          await addRectangle(shapes, {
+            left: wk.left,
+            top: wk.top,
+            width: wk.width,
+            height: wk.height,
+            fill: wk.color,
+            tag: makeTag("weekend", String(wkIdx++)),
+            lineColor: null,
+            opacity: 0.5,
+          });
+        }
+      }
+    });
+
+    // ── Elapsed Time Shading (behind everything) ──
+    await runPhase("elapsedShading", async () => {
+      if (layout.elapsedShading) {
+        const el = layout.elapsedShading;
         await addRectangle(shapes, {
-          left: wk.left,
-          top: wk.top,
-          width: wk.width,
-          height: wk.height,
-          fill: wk.color,
-          tag: makeTag("weekend", String(wkIdx++)),
+          left: el.left,
+          top: el.top,
+          width: el.width,
+          height: el.height,
+          fill: el.color,
+          tag: makeTag("elapsed", "bg"),
           lineColor: null,
           opacity: 0.5,
         });
       }
-    }
-
-    // ── Elapsed Time Shading (behind everything) ──
-    if (layout.elapsedShading) {
-      const el = layout.elapsedShading;
-      await addRectangle(shapes, {
-        left: el.left,
-        top: el.top,
-        width: el.width,
-        height: el.height,
-        fill: el.color,
-        tag: makeTag("elapsed", "bg"),
-        lineColor: null,
-        opacity: 0.5,
-      });
-    }
+    });
 
     // ── Time Axis (3-Tier) ──
+    await runPhase("timeAxis", async () => {
     let bgIndex = 0;
     for (const el of layout.timeAxis) {
       if (el.type === "timeAxisBg") {
@@ -149,8 +160,10 @@ async function renderGantt(layout) {
         });
       }
     }
+    });
 
     // ── Lane Separators ──
+    await runPhase("laneSeparators", async () => {
     if (layout.laneSeparators) {
       for (const sep of layout.laneSeparators) {
         await addLine(shapes, {
@@ -163,8 +176,10 @@ async function renderGantt(layout) {
         });
       }
     }
+    });
 
     // ── Swim Lane Labels ──
+    await runPhase("laneLabels", async () => {
     for (const el of layout.laneLabels) {
       await addRectangle(shapes, {
         left: el.left,
@@ -193,8 +208,10 @@ async function renderGantt(layout) {
         fill: null,
       });
     }
+    });
 
     // ── Sub-Swim Lane Labels ──
+    await runPhase("subLaneLabels", async () => {
     if (layout.subLaneLabels) {
       for (const el of layout.subLaneLabels) {
         await addRectangle(shapes, {
@@ -225,8 +242,10 @@ async function renderGantt(layout) {
         });
       }
     }
+    });
 
     // ── Task Bars, Baselines, Milestones ──
+    await runPhase("tasks", async () => {
     for (const el of layout.tasks) {
       if (el.type === "baselineBar") {
         // Thin bar below the actual task bar (planned dates)
@@ -408,8 +427,10 @@ async function renderGantt(layout) {
         });
       }
     }
+    });
 
     // ── Dependency Lines ──
+    await runPhase("dependencies", async () => {
     for (const dep of layout.dependencies) {
       const points = dep.points;
       for (let i = 0; i < points.length - 1; i++) {
@@ -437,8 +458,10 @@ async function renderGantt(layout) {
         }
       }
     }
+    });
 
     // ── Today Marker (on top of everything) ──
+    await runPhase("todayMarker", async () => {
     if (layout.todayMarker) {
       const tm = layout.todayMarker;
       await addLine(shapes, {
@@ -467,161 +490,247 @@ async function renderGantt(layout) {
         fill: null,
       });
     }
+    });
 
-    await context.sync();
+    await runPhase("sync", () => context.sync());
   });
+}
+
+/**
+ * Wrap a render phase so failures carry the phase name back to the user.
+ * Any error is re-thrown prefixed with [phase=X] so the status bar shows
+ * exactly which step of the render pipeline broke.
+ */
+async function runPhase(phaseName, fn) {
+  try {
+    await fn();
+  } catch (err) {
+    const msg = err && err.message ? err.message : String(err);
+    const tagHint = err && err._streamlineTag ? ` shape=${err._streamlineTag}` : "";
+    const wrapped = new Error(`[phase=${phaseName}${tagHint}] ${msg}`);
+    wrapped.originalError = err;
+    wrapped.phaseName = phaseName;
+    throw wrapped;
+  }
 }
 
 // ── Shape Helper Functions ──
 
 async function addRectangle(shapes, opts) {
-  const shapeType = (opts.cornerRadius && opts.cornerRadius > 0) ? "roundRectangle" : "rectangle";
-  const shape = shapes.addGeometricShape(shapeType, {
-    left: opts.left,
-    top: opts.top,
-    width: opts.width,
-    height: opts.height,
-  });
+  try {
+    const shapeType = (opts.cornerRadius && opts.cornerRadius > 0) ? "roundRectangle" : "rectangle";
+    const shape = shapes.addGeometricShape(shapeType, {
+      left: safeCoord(opts.left),
+      top: safeCoord(opts.top),
+      width: safeSize(opts.width),
+      height: safeSize(opts.height),
+    });
 
-  shape.name = opts.tag;
+    shape.name = opts.tag;
 
-  if (opts.fill) {
-    shape.fill.setSolidColor(opts.fill);
-    if (opts.opacity !== undefined && opts.opacity < 1) {
-      shape.fill.transparency = 1 - opts.opacity;
+    if (opts.fill) {
+      shape.fill.setSolidColor(opts.fill);
+      if (opts.opacity !== undefined && opts.opacity < 1) {
+        trySet(() => { shape.fill.transparency = 1 - opts.opacity; });
+      }
+    } else {
+      trySet(() => shape.fill.clear());
     }
-  } else {
-    shape.fill.clear();
-  }
 
-  if (opts.lineColor === null) {
-    shape.lineFormat.visible = false;
-  } else if (opts.lineColor) {
-    shape.lineFormat.color = opts.lineColor;
-  }
+    if (opts.lineColor === null) {
+      trySet(() => { shape.lineFormat.visible = false; });
+    } else if (opts.lineColor) {
+      shape.lineFormat.color = opts.lineColor;
+    }
 
-  return shape;
+    return shape;
+  } catch (err) {
+    tagError(err, opts.tag, "addRectangle");
+    throw err;
+  }
 }
 
 async function addTextBox(shapes, opts) {
-  const shape = shapes.addTextBox(opts.text || "", {
-    left: opts.left,
-    top: opts.top,
-    width: opts.width,
-    height: opts.height,
-  });
-
-  shape.name = opts.tag;
-
-  if (opts.fill) {
-    shape.fill.setSolidColor(opts.fill);
-  } else {
-    shape.fill.clear();
-  }
-
-  shape.lineFormat.visible = false;
-
-  const textRange = shape.textFrame.textRange;
-  textRange.font.size = opts.fontSize || 10;
-  textRange.font.name = opts.fontFamily || "Segoe UI";
-  textRange.font.color = opts.fontColor || "#333333";
-
-  if (opts.bold) {
-    textRange.font.bold = true;
-  }
-  if (opts.italic) {
-    textRange.font.italic = true;
-  }
-  if (opts.underline) {
-    textRange.font.underline = "single";
-  }
-
-  // PowerPoint for Mac's current Office.js build returns undefined for
-  // textRange.paragraphs on a just-added text box. Alignment is a visual
-  // nicety, so fall back to default (left) if the API isn't available.
   try {
-    const paragraphs = shape.textFrame.textRange.paragraphs;
-    if (paragraphs && typeof paragraphs.getItemAt === "function") {
-      const paragraph = paragraphs.getItemAt(0);
-      if (opts.alignment === "center") {
-        paragraph.horizontalAlignment = "center";
-      } else if (opts.alignment === "right") {
-        paragraph.horizontalAlignment = "right";
-      } else {
-        paragraph.horizontalAlignment = "left";
-      }
+    const shape = shapes.addTextBox(opts.text || " ", {
+      left: safeCoord(opts.left),
+      top: safeCoord(opts.top),
+      width: safeSize(opts.width),
+      height: safeSize(opts.height),
+    });
+
+    shape.name = opts.tag;
+
+    if (opts.fill) {
+      shape.fill.setSolidColor(opts.fill);
+    } else {
+      trySet(() => shape.fill.clear());
     }
-  } catch (_) {
-    // Alignment API not available on this host; render with default alignment.
+
+    trySet(() => { shape.lineFormat.visible = false; });
+
+    const textRange = shape.textFrame.textRange;
+    textRange.font.size = opts.fontSize || 10;
+    textRange.font.name = opts.fontFamily || "Segoe UI";
+    textRange.font.color = opts.fontColor || "#333333";
+
+    if (opts.bold) {
+      textRange.font.bold = true;
+    }
+    if (opts.italic) {
+      textRange.font.italic = true;
+    }
+    if (opts.underline) {
+      trySet(() => { textRange.font.underline = "single"; });
+    }
+
+    // PowerPoint for Mac's current Office.js build returns undefined for
+    // textRange.paragraphs on a just-added text box. Alignment is a visual
+    // nicety, so fall back to default (left) if the API isn't available.
+    trySet(() => {
+      const paragraphs = shape.textFrame.textRange.paragraphs;
+      if (paragraphs && typeof paragraphs.getItemAt === "function") {
+        const paragraph = paragraphs.getItemAt(0);
+        if (opts.alignment === "center") {
+          paragraph.horizontalAlignment = "center";
+        } else if (opts.alignment === "right") {
+          paragraph.horizontalAlignment = "right";
+        } else {
+          paragraph.horizontalAlignment = "left";
+        }
+      }
+    });
+
+    if (opts.verticalAlignment === "middle") {
+      trySet(() => { shape.textFrame.verticalAlignment = "middle"; });
+    } else if (opts.verticalAlignment === "bottom") {
+      trySet(() => { shape.textFrame.verticalAlignment = "bottom"; });
+    }
+
+    trySet(() => { shape.textFrame.autoSizeSetting = "autoSizeTextToFitShape"; });
+
+    return shape;
+  } catch (err) {
+    tagError(err, opts.tag, "addTextBox");
+    throw err;
   }
-
-  if (opts.verticalAlignment === "middle") {
-    shape.textFrame.verticalAlignment = "middle";
-  } else if (opts.verticalAlignment === "bottom") {
-    shape.textFrame.verticalAlignment = "bottom";
-  }
-
-  shape.textFrame.autoSizeSetting = "autoSizeTextToFitShape";
-
-  return shape;
 }
 
 async function addLine(shapes, opts) {
-  // ShapeCollection.addLine(connectorType, options) takes a ConnectorType
-  // ("Straight" | "Elbow" | "Curve") and a ShapeAddOptions geometry object.
-  const shape = shapes.addLine("straight", {
-    left: Math.min(opts.x1, opts.x2),
-    top: Math.min(opts.y1, opts.y2),
-    width: Math.abs(opts.x2 - opts.x1) || 0.001,
-    height: Math.abs(opts.y2 - opts.y1) || 0.001,
-  });
+  try {
+    // ShapeCollection.addLine(connectorType, options) takes a ConnectorType
+    // ("straight" | "elbow" | "curve") and a ShapeAddOptions geometry object.
+    const shape = shapes.addLine("straight", {
+      left: safeCoord(Math.min(opts.x1, opts.x2)),
+      top: safeCoord(Math.min(opts.y1, opts.y2)),
+      width: safeSize(Math.abs(opts.x2 - opts.x1)),
+      height: safeSize(Math.abs(opts.y2 - opts.y1)),
+    });
 
-  shape.name = opts.tag;
-  shape.lineFormat.color = opts.color || "#A5A5A5";
-  shape.lineFormat.weight = opts.weight || 1;
+    shape.name = opts.tag;
+    shape.lineFormat.color = opts.color || "#A5A5A5";
+    shape.lineFormat.weight = opts.weight || 1;
 
-  if (opts.dashStyle === "dash") {
-    shape.lineFormat.dashStyle = "dash";
-  } else if (opts.dashStyle === "dashDot") {
-    shape.lineFormat.dashStyle = "dashDot";
+    if (opts.dashStyle === "dash") {
+      trySet(() => { shape.lineFormat.dashStyle = "dash"; });
+    } else if (opts.dashStyle === "dashDot") {
+      trySet(() => { shape.lineFormat.dashStyle = "dashDot"; });
+    }
+
+    return shape;
+  } catch (err) {
+    tagError(err, opts.tag, "addLine");
+    throw err;
   }
-
-  return shape;
 }
 
 async function addGeometricShape(shapes, shapeType, opts) {
-  const shape = shapes.addGeometricShape(shapeType, {
-    left: opts.left,
-    top: opts.top,
-    width: opts.width,
-    height: opts.height,
-  });
+  try {
+    const shape = shapes.addGeometricShape(shapeType, {
+      left: safeCoord(opts.left),
+      top: safeCoord(opts.top),
+      width: safeSize(opts.width),
+      height: safeSize(opts.height),
+    });
 
-  shape.name = opts.tag;
-  shape.fill.setSolidColor(opts.fill);
-  shape.lineFormat.visible = false;
+    shape.name = opts.tag;
+    shape.fill.setSolidColor(opts.fill);
+    trySet(() => { shape.lineFormat.visible = false; });
 
-  return shape;
+    return shape;
+  } catch (err) {
+    tagError(err, opts.tag, `addGeometricShape(${shapeType})`);
+    throw err;
+  }
 }
 
 async function addArrowhead(shapes, opts) {
-  const shape = shapes.addGeometricShape("isoscelesTriangle", {
-    left: opts.x - opts.size / 2,
-    top: opts.y - opts.size / 2,
-    width: opts.size,
-    height: opts.size,
-  });
+  try {
+    const shape = shapes.addGeometricShape("isoscelesTriangle", {
+      left: safeCoord(opts.x - opts.size / 2),
+      top: safeCoord(opts.y - opts.size / 2),
+      width: safeSize(opts.size),
+      height: safeSize(opts.size),
+    });
 
-  shape.name = opts.tag;
-  shape.fill.setSolidColor(opts.color);
-  shape.lineFormat.visible = false;
+    shape.name = opts.tag;
+    shape.fill.setSolidColor(opts.color);
+    trySet(() => { shape.lineFormat.visible = false; });
 
-  const dx = opts.x - opts.fromX;
-  const dy = opts.y - opts.fromY;
-  const angle = Math.atan2(dy, dx) * (180 / Math.PI);
-  shape.rotation = angle + 90;
+    const dx = opts.x - opts.fromX;
+    const dy = opts.y - opts.fromY;
+    const angle = Math.atan2(dy, dx) * (180 / Math.PI);
+    trySet(() => { shape.rotation = angle + 90; });
 
-  return shape;
+    return shape;
+  } catch (err) {
+    tagError(err, opts.tag, "addArrowhead");
+    throw err;
+  }
+}
+
+// ── Shape helper utilities ──
+
+/**
+ * Clamp a coordinate to a safe non-negative value. PowerPoint for Mac
+ * sometimes throws InvalidArgument on negative / NaN left/top.
+ */
+function safeCoord(v) {
+  if (typeof v !== "number" || !isFinite(v)) return 0;
+  return Math.max(0, v);
+}
+
+/**
+ * Clamp a size to a strictly positive value. PowerPoint for Mac throws
+ * InvalidArgument if width/height is 0 or negative.
+ */
+function safeSize(v) {
+  if (typeof v !== "number" || !isFinite(v) || v <= 0) return 0.01;
+  return v;
+}
+
+/**
+ * Execute a property setter or API call and swallow errors. Use this for
+ * optional visual properties (opacity, alignment, dash style) that some
+ * Mac Office.js builds don't accept — we'd rather render with the
+ * default than abort the entire chart.
+ */
+function trySet(fn) {
+  try {
+    fn();
+  } catch (_) {
+    // Silently ignore — property is a visual nicety, not required to render.
+  }
+}
+
+/**
+ * Attach a Streamline shape tag to a thrown error so runPhase can surface
+ * it in the user-visible error message.
+ */
+function tagError(err, tag, helper) {
+  if (!err) return;
+  if (tag && !err._streamlineTag) err._streamlineTag = tag;
+  if (helper && !err._streamlineHelper) err._streamlineHelper = helper;
 }
 
 /**

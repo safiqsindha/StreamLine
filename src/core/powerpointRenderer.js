@@ -10,14 +10,16 @@ function makeTag(type, id) {
   return `${SHAPE_TAG_PREFIX}:${type}:${id}`;
 }
 
-// Map milestone shape names to Office JS geometric shape types
+// Map milestone shape names to Office JS geometric shape types.
+// PowerPoint's GeometricShapeType enum values are camelCase; Mac
+// PowerPoint rejects PascalCase with "InvalidArgument".
 const MILESTONE_SHAPE_MAP = {
-  diamond: "Diamond",
-  circle: "Ellipse",
-  triangle: "IsoscelesTriangle",
-  star: "Star5",
-  flag: "RightArrow",
-  square: "Rectangle",
+  diamond: "diamond",
+  circle: "ellipse",
+  triangle: "isoscelesTriangle",
+  star: "star5",
+  flag: "rightArrow",
+  square: "rectangle",
 };
 
 /**
@@ -373,7 +375,7 @@ async function renderGantt(layout) {
         }
       } else if (el.type === "milestone") {
         // Milestone shape
-        const shapeType = MILESTONE_SHAPE_MAP[el.milestoneShape] || "Diamond";
+        const shapeType = MILESTONE_SHAPE_MAP[el.milestoneShape] || "diamond";
 
         await addGeometricShape(shapes, shapeType, {
           left: el.left,
@@ -473,7 +475,7 @@ async function renderGantt(layout) {
 // ── Shape Helper Functions ──
 
 async function addRectangle(shapes, opts) {
-  const shapeType = (opts.cornerRadius && opts.cornerRadius > 0) ? "RoundedRectangle" : "Rectangle";
+  const shapeType = (opts.cornerRadius && opts.cornerRadius > 0) ? "roundRectangle" : "rectangle";
   const shape = shapes.addGeometricShape(shapeType, {
     left: opts.left,
     top: opts.top,
@@ -531,7 +533,7 @@ async function addTextBox(shapes, opts) {
     textRange.font.italic = true;
   }
   if (opts.underline) {
-    textRange.font.underline = "Single";
+    textRange.font.underline = "single";
   }
 
   // PowerPoint for Mac's current Office.js build returns undefined for
@@ -542,11 +544,11 @@ async function addTextBox(shapes, opts) {
     if (paragraphs && typeof paragraphs.getItemAt === "function") {
       const paragraph = paragraphs.getItemAt(0);
       if (opts.alignment === "center") {
-        paragraph.horizontalAlignment = "Center";
+        paragraph.horizontalAlignment = "center";
       } else if (opts.alignment === "right") {
-        paragraph.horizontalAlignment = "Right";
+        paragraph.horizontalAlignment = "right";
       } else {
-        paragraph.horizontalAlignment = "Left";
+        paragraph.horizontalAlignment = "left";
       }
     }
   } catch (_) {
@@ -554,12 +556,12 @@ async function addTextBox(shapes, opts) {
   }
 
   if (opts.verticalAlignment === "middle") {
-    shape.textFrame.verticalAlignment = "Middle";
+    shape.textFrame.verticalAlignment = "middle";
   } else if (opts.verticalAlignment === "bottom") {
-    shape.textFrame.verticalAlignment = "Bottom";
+    shape.textFrame.verticalAlignment = "bottom";
   }
 
-  shape.textFrame.autoSizeSetting = "AutoSizeTextToFitShape";
+  shape.textFrame.autoSizeSetting = "autoSizeTextToFitShape";
 
   return shape;
 }
@@ -567,7 +569,7 @@ async function addTextBox(shapes, opts) {
 async function addLine(shapes, opts) {
   // ShapeCollection.addLine(connectorType, options) takes a ConnectorType
   // ("Straight" | "Elbow" | "Curve") and a ShapeAddOptions geometry object.
-  const shape = shapes.addLine("Straight", {
+  const shape = shapes.addLine("straight", {
     left: Math.min(opts.x1, opts.x2),
     top: Math.min(opts.y1, opts.y2),
     width: Math.abs(opts.x2 - opts.x1) || 0.001,
@@ -579,9 +581,9 @@ async function addLine(shapes, opts) {
   shape.lineFormat.weight = opts.weight || 1;
 
   if (opts.dashStyle === "dash") {
-    shape.lineFormat.dashStyle = "Dash";
+    shape.lineFormat.dashStyle = "dash";
   } else if (opts.dashStyle === "dashDot") {
-    shape.lineFormat.dashStyle = "DashDot";
+    shape.lineFormat.dashStyle = "dashDot";
   }
 
   return shape;
@@ -603,7 +605,7 @@ async function addGeometricShape(shapes, shapeType, opts) {
 }
 
 async function addArrowhead(shapes, opts) {
-  const shape = shapes.addGeometricShape("IsoscelesTriangle", {
+  const shape = shapes.addGeometricShape("isoscelesTriangle", {
     left: opts.x - opts.size / 2,
     top: opts.y - opts.size / 2,
     width: opts.size,

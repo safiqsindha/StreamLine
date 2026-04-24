@@ -37,7 +37,7 @@ async function renderGantt(layout) {
     const shapes = slide.shapes;
 
     // ── Weekend Highlighting (behind everything) ──
-    await runPhase("weekendShading", async () => {
+    await runPhase("weekendShading", context, async () => {
       if (layout.weekendShading && layout.weekendShading.length > 0) {
         let wkIdx = 0;
         for (const wk of layout.weekendShading) {
@@ -56,7 +56,7 @@ async function renderGantt(layout) {
     });
 
     // ── Elapsed Time Shading (behind everything) ──
-    await runPhase("elapsedShading", async () => {
+    await runPhase("elapsedShading", context, async () => {
       if (layout.elapsedShading) {
         const el = layout.elapsedShading;
         await addRectangle(shapes, {
@@ -73,7 +73,7 @@ async function renderGantt(layout) {
     });
 
     // ── Time Axis (3-Tier) ──
-    await runPhase("timeAxis", async () => {
+    await runPhase("timeAxis", context, async () => {
     let bgIndex = 0;
     for (const el of layout.timeAxis) {
       if (el.type === "timeAxisBg") {
@@ -163,7 +163,7 @@ async function renderGantt(layout) {
     });
 
     // ── Lane Separators ──
-    await runPhase("laneSeparators", async () => {
+    await runPhase("laneSeparators", context, async () => {
     if (layout.laneSeparators) {
       for (const sep of layout.laneSeparators) {
         await addLine(shapes, {
@@ -179,7 +179,7 @@ async function renderGantt(layout) {
     });
 
     // ── Swim Lane Labels ──
-    await runPhase("laneLabels", async () => {
+    await runPhase("laneLabels", context, async () => {
     for (const el of layout.laneLabels) {
       await addRectangle(shapes, {
         left: el.left,
@@ -211,7 +211,7 @@ async function renderGantt(layout) {
     });
 
     // ── Sub-Swim Lane Labels ──
-    await runPhase("subLaneLabels", async () => {
+    await runPhase("subLaneLabels", context, async () => {
     if (layout.subLaneLabels) {
       for (const el of layout.subLaneLabels) {
         await addRectangle(shapes, {
@@ -245,7 +245,7 @@ async function renderGantt(layout) {
     });
 
     // ── Task Bars, Baselines, Milestones ──
-    await runPhase("tasks", async () => {
+    await runPhase("tasks", context, async () => {
     for (const el of layout.tasks) {
       if (el.type === "baselineBar") {
         // Thin bar below the actual task bar (planned dates)
@@ -430,7 +430,7 @@ async function renderGantt(layout) {
     });
 
     // ── Dependency Lines ──
-    await runPhase("dependencies", async () => {
+    await runPhase("dependencies", context, async () => {
     for (const dep of layout.dependencies) {
       const points = dep.points;
       for (let i = 0; i < points.length - 1; i++) {
@@ -461,7 +461,7 @@ async function renderGantt(layout) {
     });
 
     // ── Today Marker (on top of everything) ──
-    await runPhase("todayMarker", async () => {
+    await runPhase("todayMarker", context, async () => {
     if (layout.todayMarker) {
       const tm = layout.todayMarker;
       await addLine(shapes, {
@@ -492,7 +492,8 @@ async function renderGantt(layout) {
     }
     });
 
-    await runPhase("sync", () => context.sync());
+    // Each phase above calls context.sync() internally so errors are
+    // attributed to the specific phase. No final sync needed.
   });
 }
 
@@ -500,14 +501,27 @@ async function renderGantt(layout) {
  * Wrap a render phase so failures carry the phase name back to the user.
  * Any error is re-thrown prefixed with [phase=X] so the status bar shows
  * exactly which step of the render pipeline broke.
+ *
+ * If a PowerPoint.RequestContext is passed as the second argument, we flush
+ * it with context.sync() at the end of the phase. This lets us isolate
+ * sync-time errors (where PowerPoint rejects a queued property set) to a
+ * specific phase; otherwise a single sync at the end of renderGantt would
+ * blame every failure on "phase=sync" with no further detail.
  */
-async function runPhase(phaseName, fn) {
+async function runPhase(phaseName, contextOrFn, maybeFn) {
+  const hasContext = typeof contextOrFn !== "function";
+  const context = hasContext ? contextOrFn : null;
+  const fn = hasContext ? maybeFn : contextOrFn;
   try {
     await fn();
+    if (context && context.sync) {
+      await context.sync();
+    }
   } catch (err) {
     const msg = err && err.message ? err.message : String(err);
     const tagHint = err && err._streamlineTag ? ` shape=${err._streamlineTag}` : "";
-    const wrapped = new Error(`[phase=${phaseName}${tagHint}] ${msg}`);
+    const helperHint = err && err._streamlineHelper ? ` helper=${err._streamlineHelper}` : "";
+    const wrapped = new Error(`[phase=${phaseName}${tagHint}${helperHint}] ${msg}`);
     wrapped.originalError = err;
     wrapped.phaseName = phaseName;
     throw wrapped;

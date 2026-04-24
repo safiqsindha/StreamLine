@@ -430,35 +430,38 @@ async function renderGantt(layout) {
     });
 
     // ── Dependency Lines ──
-    await runPhase("dependencies", context, async () => {
+    // Sub-sync per dep so InvalidArgument attributes to the specific dep
+    // rather than the whole phase.
     for (const dep of layout.dependencies) {
-      const points = dep.points;
-      for (let i = 0; i < points.length - 1; i++) {
-        const isLast = i === points.length - 2;
+      const depLabel = `dep_${dep.fromTaskId}_${dep.toTaskId}`;
+      await runPhase(`dependencies:${depLabel}`, context, async () => {
+        const points = dep.points;
+        for (let i = 0; i < points.length - 1; i++) {
+          const isLast = i === points.length - 2;
 
-        await addLine(shapes, {
-          x1: points[i].x, y1: points[i].y,
-          x2: points[i + 1].x, y2: points[i + 1].y,
-          color: dep.color,
-          weight: dep.weight,
-          dashStyle: "solid",
-          tag: makeTag("dep", `${dep.fromTaskId}_${dep.toTaskId}_${i}`),
-        });
-
-        if (isLast) {
-          await addArrowhead(shapes, {
-            x: points[i + 1].x,
-            y: points[i + 1].y,
-            fromX: points[i].x,
-            fromY: points[i].y,
-            size: dep.arrowSize / 72,
+          await addLine(shapes, {
+            x1: points[i].x, y1: points[i].y,
+            x2: points[i + 1].x, y2: points[i + 1].y,
             color: dep.color,
-            tag: makeTag("arrow", `${dep.fromTaskId}_${dep.toTaskId}`),
+            weight: dep.weight,
+            dashStyle: "solid",
+            tag: makeTag("dep", `${dep.fromTaskId}_${dep.toTaskId}_${i}`),
           });
+
+          if (isLast) {
+            await addArrowhead(shapes, {
+              x: points[i + 1].x,
+              y: points[i + 1].y,
+              fromX: points[i].x,
+              fromY: points[i].y,
+              size: dep.arrowSize / 72,
+              color: dep.color,
+              tag: makeTag("arrow", `${dep.fromTaskId}_${dep.toTaskId}`),
+            });
+          }
         }
-      }
+      });
     }
-    });
 
     // ── Today Marker (on top of everything) ──
     await runPhase("todayMarker", context, async () => {

@@ -1,23 +1,50 @@
+<p align="center">
+  <picture>
+    <source media="(prefers-color-scheme: dark)" srcset="assets/banner-dark.svg">
+    <img src="assets/banner-light.svg" alt="Streamline" width="100%">
+  </picture>
+</p>
+
 # Streamline
 
-> A modern, AI-native Gantt chart add-in for Microsoft PowerPoint — built on Office.js, integrated with Microsoft 365, and powered by Copilot.
+**A modern, AI-native Gantt chart add-in for Microsoft PowerPoint — built on Office.js, integrated with Microsoft 365, and powered by Copilot.**
 
-**Status:** Private, pre-handoff. Being prepared for first-party integration into the Microsoft 365 ecosystem.
+Streamline turns Excel schedules, Microsoft Project files, Planner boards, and natural-language prompts into rich, editable Gantt charts rendered as **native PowerPoint shapes**. It runs everywhere Office.js runs — Windows, Mac, PowerPoint for the web, and iPad — including the platforms the leading competitor cannot ship to at all.
+
+- **Cross-platform where the incumbent isn't** — Windows, Mac, Web, and iPad. Office Timeline is Windows-only.
+- **Native shapes, not an opaque container** — every bar, milestone, arrow, and label is a tagged PowerPoint shape: animatable, accessible, and co-author-friendly
+- **Microsoft 365 native** — first-class import from Planner, To Do, Outlook Calendar, SharePoint and OneDrive through Microsoft Graph with Office SSO
+- **Copilot-integrated** — a declarative agent, function commands, and a Teams compose extension, so charts can be generated, edited, and described from chat
+
+![Platform](https://img.shields.io/badge/platform-Windows%20%C2%B7%20Mac%20%C2%B7%20Web%20%C2%B7%20iPad-2563EB?style=flat-square)
+![Office.js](https://img.shields.io/badge/Office.js-PowerPoint-2563EB?style=flat-square)
+![Tests](https://img.shields.io/badge/tests-512%20assertions-22c55e?style=flat-square)
+![License](https://img.shields.io/badge/license-proprietary-DC2626?style=flat-square)
+![Visibility](https://img.shields.io/badge/visibility-private-6B7280?style=flat-square)
+
+**[Windows setup](SIDELOAD-WINDOWS.md)** · **[Mac setup](SIDELOAD-MAC.md)** · **[Testing guide](TESTING-GUIDE.md)** · **[Backend](backend/README.md)** · **[Security](SECURITY.md)**
+
+```bash
+npm install
+npx office-addin-dev-certs install
+npm run start:desktop      # sideloads + launches PowerPoint
+```
+
+> **Status: private, pre-handoff.** Being prepared for first-party integration into the Microsoft 365 ecosystem.
 
 ---
 
-## What it is
+## What makes it different
 
-Streamline is a PowerPoint add-in that turns Excel schedules, Microsoft Project files, Planner boards, and natural-language prompts into rich, editable Gantt charts rendered as native PowerPoint shapes. It runs everywhere Office.js runs — Windows, **Mac**, **PowerPoint for the web**, and **iPad** — including platforms where the leading competitor (Office Timeline Expert) cannot ship at all.
+| | Streamline | Office Timeline Expert |
+|---|---|---|
+| Windows | ✅ | ✅ |
+| Mac · Web · iPad | ✅ | ❌ |
+| Output | Native tagged PPT shapes | Opaque container |
+| M365 import (Planner, To Do, Calendar, SharePoint) | ✅ via Graph + SSO | ❌ |
+| Copilot / chat-driven authoring | ✅ | ❌ |
 
-### What makes it different
-
-- **Cross-platform** — runs on Windows, Mac, Web, and iPad. Office Timeline is Windows-only.
-- **Microsoft 365 native** — first-class import from Planner, To Do, Outlook Calendar, SharePoint, OneDrive via Microsoft Graph + Office SSO.
-- **Copilot-integrated** — declarative agent, function commands, and Teams compose extension. Generate, edit, and describe Gantt charts from chat.
-- **Native PowerPoint shapes** — every bar, milestone, arrow, and label is a tagged PPT shape, not an opaque container. Animatable, accessible, co-author-friendly.
-- **Cascading auto-schedule** — full FS/SS/FF/SF dependency engine with lag/lead support and critical-path highlighting.
-- **Multiple export formats** — PNG, JPG, PDF, and bidirectional MS Project XML round-trip.
+Beyond the comparison: a full **cascading auto-scheduler** with FS/SS/FF/SF dependencies, lag and lead support, and critical-path highlighting; and export to PNG, JPG, PDF, plus a bidirectional MS Project XML round-trip.
 
 ---
 

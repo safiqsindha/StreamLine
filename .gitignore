@@ -55,3 +55,9 @@ temp/
 *.tmp
 *.bak
 *.orig
+
+# Local schedule data written by the API
+data/
+
+# Generated test fixtures
+test/fixtures/out/

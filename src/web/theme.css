@@ -1,0 +1,109 @@
+/*
+  Streamline theme. Every color, font, size and radius the app uses is defined here.
+  Replace this file to re-skin the app; no component or engine code changes.
+  Exports read the same tokens, so exported images match the screen.
+*/
+
+@font-face {
+  font-family: 'Cascadia Mono';
+  src: url('@fontsource/cascadia-mono/files/cascadia-mono-latin-400-normal.woff2') format('woff2');
+  font-weight: 400;
+  font-style: normal;
+  font-display: swap;
+}
+@font-face {
+  font-family: 'Cascadia Mono';
+  src: url('@fontsource/cascadia-mono/files/cascadia-mono-latin-600-normal.woff2') format('woff2');
+  font-weight: 600;
+  font-style: normal;
+  font-display: swap;
+}
+
+:root {
+  /* Surfaces */
+  --canvas: #f7f7f5;
+  --surface: #ffffff;
+  --surface-2: #fbfbfa;
+  --band: #f5f6f3;
+  --hover: #f3f4f1;
+  --hover-2: #f0f1ee;
+  --pressed: #ecedea;
+  --row-hover: #f7f8f6;
+  --ink-hover: #2c3036;
+  --select: #eef3fa;
+
+  /* Text */
+  --ink: #1a1d21;
+  --ink-2: #3c4248;
+  --muted: #5b6168;
+  --on-ink: #ffffff;
+
+  /* Lines */
+  --border: #e3e4e1;
+  --border-2: #eff0ed;
+  --control-border: #d6d8d4;
+
+  /* Schedule semantics */
+  --critical: #c2410c;
+  --task: #a9bede;
+  --unavailable: #cdd0cc;
+  --unavailable-ink: #5b6168;
+  --highlight: #2f5a94;
+  --highlight-bg: #e8eef7;
+  --dim: #cdd0cc;
+  --baseline: #8a9097;
+  --dep-line: #8a9097;
+  --dep-unknown: #8a9097;
+  --conflict: #9f1239;
+  --conflict-bg: #fdecef;
+  --ok: #2e7d4f;
+  --warn-bg: #fff4e5;
+  --warn-ink: #7a3e00;
+  --warn-border: #f3d9b5;
+  --summary-bar: #3c4248;
+  --milestone: #1a1d21;
+  --today: #1a1d21;
+  --focus: #2f5a94;
+
+  /* Workstream lanes, assigned in display order */
+  --lane-1: #2f5a94;
+  --lane-2: #6e95cc;
+  --lane-3: #b7cbe8;
+  --lane-4: #4f7a5a;
+  --lane-5: #8fb59a;
+  --lane-6: #8a6d9e;
+
+  /* Type */
+  --font: 'Segoe UI Variable Text', 'Segoe UI', system-ui, -apple-system, sans-serif;
+  --mono: 'Cascadia Mono', Consolas, ui-monospace, 'SFMono-Regular', monospace;
+  --text-xs: 11px;
+  --text-sm: 12px;
+  --text-md: 13px;
+  --text-base: 14px;
+  --text-lg: 15px;
+  --text-xl: 16px;
+  --label-min: 12px;
+  --lane-heading-min: 14px;
+
+  /* Layout */
+  --sidebar-width: 216px;
+  --row: 36px;
+  --head: 44px;
+  --drawer-width: 340px;
+  --gutter: 24px;
+  --gutter-narrow: 16px;
+
+  /* Radii */
+  --radius-sm: 4px;
+  --radius: 6px;
+  --radius-md: 8px;
+  --radius-lg: 10px;
+  --radius-xl: 12px;
+
+  /* Elevation */
+  --shadow-menu: 0 10px 30px rgba(20, 22, 25, 0.12);
+  --shadow-drawer: -12px 0 30px rgba(20, 22, 25, 0.08);
+  --shadow-dialog: 0 20px 60px rgba(20, 22, 25, 0.25);
+  --shadow-toast: 0 8px 24px rgba(0, 0, 0, 0.2);
+  --backdrop: rgba(20, 22, 25, 0.3);
+}

@@ -3,7 +3,7 @@ import { fmtShort } from '../../core/dates'
 import type { ColumnMapping, ImportPreview, MappedField } from '../../core/import/types'
 import type { Schedule } from '../../core/model'
 import { api } from '../api'
-import { S } from '../strings'
+import { S } from '../../core/strings'
 import { Loading, Modal } from './ui'
 
 const FIELDS: MappedField[] = ['id', 'name', 'workstream', 'owner', 'start', 'finish', 'milestone', 'critical', 'float', 'parent', 'summary', 'predecessors']

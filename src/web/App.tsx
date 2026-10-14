@@ -10,7 +10,7 @@ import { BrandMark, Loading, Modal, SearchIcon, Toasts, useToasts } from './comp
 import { INITIAL_WORKSPACE, Workspace, type WorkspaceState } from './components/Workspace'
 import { download, localTodayISO, longDateTime, shortDate } from './format'
 import { PAGE_IDS, readRoute, routeHash, type PageId, type Route } from './route'
-import { S } from './strings'
+import { S } from '../core/strings'
 
 interface OpenSchedule {
   schedule: Schedule
@@ -349,7 +349,7 @@ export function App() {
 
       <main>
         <header className="topbar">
-          <nav className="crumb" aria-label="Breadcrumb">
+          <nav className="crumb" aria-label={S.topbar.breadcrumbLabel}>
             {inWorkspace ? (
               <>
                 <button className="crumb-link" onClick={toList}>

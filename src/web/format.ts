@@ -1,6 +1,6 @@
 import { fmtLong, fmtShort } from '../core/dates'
 import type { Presentation, Task } from '../core/model'
-import { S } from './strings'
+import { S } from '../core/strings'
 
 /** Shown name: presentation label when set, else the source name. */
 export function displayName(task: Task, presentation: Presentation | null): string {

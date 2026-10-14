@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react'
-import { S } from '../strings'
+import { S } from '../../core/strings'
 import { Modal } from './ui'
 
 export interface Command {

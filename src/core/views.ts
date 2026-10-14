@@ -4,13 +4,14 @@
 import { dayNum } from './dates'
 import type { Criticality, Presentation, Schedule, Task } from './model'
 import { createTaskFilter } from './filter'
+import { S } from './strings'
 import { compareTasks, displayGroups, groupKeyOf } from './order'
 import { buildDependencyIndex } from './reachability'
 
 export { UNGROUPED_LABEL, compareTasks, displayGroups } from './order'
 export { downstreamOf, predecessorsOf, successorsOf } from './reachability'
 
-export const MILESTONES_LABEL = 'Key milestones'
+export const MILESTONES_LABEL = S.workstreams.milestones
 
 export type ViewId = 'executive' | 'detailed' | 'dependencies' | 'workstreams' | 'critical'
 

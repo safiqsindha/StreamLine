@@ -3,7 +3,7 @@ import type { Baseline } from '../../core/model'
 import { VIEW_IDS, type ViewId } from '../../core/views'
 import { api, type ExportFormat, type OpenApiDoc } from '../api'
 import { shortDate } from '../format'
-import { S } from '../strings'
+import { S } from '../../core/strings'
 import { Loading } from './ui'
 
 export function ViewsPage({ onOpen }: { onOpen: (v: ViewId) => void }) {

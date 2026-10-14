@@ -1,6 +1,7 @@
 // The web app's only data access. Every call goes to the local API, the same
 // endpoints agents use; the browser never touches storage directly.
 
+import { S } from '../core/strings'
 import type { ImportPreview, ColumnMapping } from '../core/import/types'
 import type { DateRange, Zoom } from '../core/layout'
 import type { Baseline, Presentation, Schedule, ScheduleMeta, TaskPresentation } from '../core/model'
@@ -36,7 +37,7 @@ async function request<T>(method: string, path: string, init: { json?: unknown; 
   try {
     res = await fetch(path, { method, headers, body })
   } catch {
-    throw new ApiError('Streamline could not reach its local service. Start it with "npm start" and reload.', 0)
+    throw new ApiError(S.states.apiDown, 0)
   }
   if (res.status === 204) return undefined as T
   const text = await res.text()
@@ -47,7 +48,7 @@ async function request<T>(method: string, path: string, init: { json?: unknown; 
     // Non-JSON error bodies fall through to the generic message below.
   }
   if (!res.ok) {
-    const message = (data as { error?: { message?: string } } | null)?.error?.message ?? `Request failed (${res.status}).`
+    const message = (data as { error?: { message?: string } } | null)?.error?.message ?? S.states.requestFailed(res.status)
     throw new ApiError(message, res.status)
   }
   return data as T
@@ -106,11 +107,11 @@ export const api = {
     try {
       res = await fetch(`/api/schedules/${enc(id)}/export`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) })
     } catch {
-      throw new ApiError('Streamline could not reach its local service.', 0)
+      throw new ApiError(S.states.apiDownShort, 0)
     }
     if (!res.ok) {
       const data = await res.json().catch(() => null)
-      throw new ApiError(data?.error?.message ?? `Export failed (${res.status}).`, res.status)
+      throw new ApiError(data?.error?.message ?? S.states.exportRequestFailed(res.status), res.status)
     }
     const cd = res.headers.get('Content-Disposition') ?? ''
     const filename = /filename="([^"]+)"/.exec(cd)?.[1] ?? `export.${body.format}`

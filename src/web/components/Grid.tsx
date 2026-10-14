@@ -2,7 +2,7 @@ import type { Presentation, Schedule, Task } from '../../core/model'
 import { spanDays } from '../../core/dates'
 import type { ResolvedView, Row, ViewId } from '../../core/views'
 import { displayName, hasLabelOverride, shortDate } from '../format'
-import { S } from '../strings'
+import { S } from '../../core/strings'
 import { Chevron, Unavailable } from './ui'
 
 export type ColKey = 'item' | 'task' | 'owner' | 'ws' | 'start' | 'finish' | 'dur' | 'float' | 'down'

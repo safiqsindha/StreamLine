@@ -2,7 +2,7 @@ import { useState } from 'react'
 import type { ScheduleMeta } from '../../core/model'
 import { api } from '../api'
 import { longDateTime } from '../format'
-import { S } from '../strings'
+import { S } from '../../core/strings'
 import { Loading, Modal } from './ui'
 
 export function Landing({

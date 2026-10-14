@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState, type ReactNode } from 'react'
-import { S } from '../strings'
+import { S } from '../../core/strings'
 
 export function BrandMark() {
   return (

@@ -3,7 +3,7 @@ import { dayNum, spanDays } from '../../core/dates'
 import type { Baseline, Emphasis, Presentation, Schedule, Task } from '../../core/model'
 import { downstreamOf, successorsOf } from '../../core/views'
 import { displayName, hasLabelOverride, shortDate } from '../format'
-import { S } from '../strings'
+import { S } from '../../core/strings'
 import { CloseIcon, Unavailable } from './ui'
 
 export interface PresentationEdit {

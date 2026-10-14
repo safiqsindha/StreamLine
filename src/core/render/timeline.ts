@@ -2,10 +2,11 @@
 // function, so they cannot drift. Positions come only from Layout.
 
 import { dayNum, fmtShort, isoOf, weekday } from '../dates'
-import type { Baseline, Criticality, DependencyType, Presentation, Schedule, Task } from '../model'
+import type { Baseline, Criticality, Presentation, Schedule, Task } from '../model'
 import type { Layout } from '../layout'
+import { S } from '../strings'
 import { downstreamOf } from '../reachability'
-import type { HiddenDependency, ResolvedView, Row, ViewId } from '../views'
+import type { HiddenDependency, ResolvedView, Row } from '../views'
 
 export const COLOR_TOKENS = [
   'canvas', 'surface', 'surface-2', 'band', 'select', 'ink', 'ink-2', 'muted', 'border', 'border-2',
@@ -31,30 +32,6 @@ export interface TimelineOptions {
   labels?: { width: number; title: string }
 }
 
-const VIEW_LABELS: Record<ViewId, string> = {
-  executive: 'Executive',
-  detailed: 'Detailed',
-  dependencies: 'Dependencies',
-  workstreams: 'Workstreams',
-  critical: 'Critical',
-}
-
-const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec']
-
-const DEP_NAMES: Record<Exclude<DependencyType, 'unknown'>, string> = {
-  FS: 'Finish-to-start',
-  SS: 'Start-to-start',
-  FF: 'Finish-to-finish',
-  SF: 'Start-to-finish',
-}
-
-const REASON_TEXT: Record<HiddenDependency['reason'], string> = {
-  filtered: 'filtered out',
-  collapsed: 'in a collapsed group',
-  'other-page': 'on another page',
-  view: 'not in this view',
-}
-
 const MILESTONE_HALF = 8
 const ARROW_GAP = 8
 const LABEL_MAX = 32
@@ -72,18 +49,11 @@ function textWidth(s: string, size: number): number {
 }
 
 function critWording(c: Criticality): string {
-  if (c === 'critical') return 'Critical (source)'
-  if (c === 'not-critical') return 'Not critical (source)'
-  return 'Criticality unavailable'
+  return S.timeline.crit[c]
 }
 
-function lagText(lag: number | null): string {
-  if (lag === null) return 'lag not stated'
-  return `lag ${lag < 0 ? '-' : '+'}${Math.abs(lag)}d`
-}
-
-function plural(count: number, word: string): string {
-  return `${count} ${word}${count === 1 ? '' : 's'}`
+function plural(count: number, [one, many]: readonly string[]): string {
+  return `${count} ${count === 1 ? one : many}`
 }
 
 interface Geometry {
@@ -161,7 +131,7 @@ export function renderTimeline(o: TimelineOptions): string {
     const monday = weekday(d) === 1
     const x = layout.x(d)
     if (dom === 1 || (d === r0 && nextFirst - r0 >= startLabelRoom)) {
-      header.push(txt(x + 6, 17, 12, 'ink-2', `${MONTHS[Number(iso.slice(5, 7)) - 1]} ${iso.slice(0, 4)}`, ' font-weight="600"'))
+      header.push(txt(x + 6, 17, 12, 'ink-2', `${S.timeline.months[Number(iso.slice(5, 7)) - 1]} ${iso.slice(0, 4)}`, ' font-weight="600"'))
     }
     const mark = layout.zoom === 'day' || (layout.zoom === 'week' && monday) || (layout.zoom === 'month' && dom === 1)
     if (!mark) continue
@@ -176,7 +146,7 @@ export function renderTimeline(o: TimelineOptions): string {
   if (td >= r0 && td <= r1) {
     const x = layout.cx(o.today)
     todayLine.push(
-      `<line class="today" x1="${n(x)}" x2="${n(x)}" y1="${head}" y2="${n(H)}" stroke="${color('today')}" stroke-width="1.5" stroke-dasharray="4 3"><title>Today, ${esc(fmtShort(o.today))}</title></line>`,
+      `<line class="today" x1="${n(x)}" x2="${n(x)}" y1="${head}" y2="${n(H)}" stroke="${color('today')}" stroke-width="1.5" stroke-dasharray="4 3"><title>${esc(S.timeline.today(fmtShort(o.today)))}</title></line>`,
     )
   }
 
@@ -213,14 +183,14 @@ export function renderTimeline(o: TimelineOptions): string {
 
     const label = labelOf(t)
     const hasOverride = label !== t.name
-    const known = t.start && t.finish ? `${fmtShort(t.start)} – ${fmtShort(t.finish)}` : null
+    const known = t.start && t.finish ? S.timeline.startFinish(fmtShort(t.start), fmtShort(t.finish)) : null
     let dates: string
     if (t.milestone && (t.start ?? t.finish)) dates = fmtShort((t.start ?? t.finish)!)
     else if (known) dates = known
-    else if (t.start) dates = `Start ${fmtShort(t.start)}, finish unavailable`
-    else if (t.finish) dates = `Start unavailable, finish ${fmtShort(t.finish)}`
-    else dates = 'Unavailable'
-    const title = [label, ...(hasOverride ? [`Source name: ${t.name}`] : []), dates, critWording(t.critical)].join('\n')
+    else if (t.start) dates = S.timeline.startOnly(fmtShort(t.start))
+    else if (t.finish) dates = S.timeline.finishOnly(fmtShort(t.finish))
+    else dates = S.unavailable
+    const title = [label, ...(hasOverride ? [S.timeline.sourceName(t.name)] : []), dates, critWording(t.critical)].join('\n')
     const open = `<g class="bar" data-task-id="${esc(t.id)}"${op(opacity)}><title>${esc(title)}</title>`
     const cy = y + 18
     const parts: string[] = [open]
@@ -245,7 +215,7 @@ export function renderTimeline(o: TimelineOptions): string {
     } else if (t.start || t.finish) {
       const startKnown = t.start !== null
       const tx = startKnown ? layout.x(t.start!) : layout.x(t.finish!) + layout.ppd
-      const note = startKnown ? 'Finish unavailable' : 'Start unavailable'
+      const note = startKnown ? S.timeline.finishUnavailable : S.timeline.startUnavailable
       parts.push(`<line x1="${n(tx)}" x2="${n(tx)}" y1="${n(y + 9)}" y2="${n(y + 27)}" stroke="${color('muted')}" stroke-width="2"/>`)
       parts.push(unavailable(tx + 8, y, note))
       geo.set(t.id, {
@@ -256,7 +226,7 @@ export function renderTimeline(o: TimelineOptions): string {
       })
     } else {
       const tx = x0 + 8
-      const note = 'Dates unavailable'
+      const note = S.timeline.datesUnavailable
       parts.push(unavailable(tx, y, note))
       geo.set(t.id, { left: null, right: null, minX: tx, maxX: tx + textWidth(note, 12) })
     }
@@ -266,16 +236,15 @@ export function renderTimeline(o: TimelineOptions): string {
 
   function drawSummary(r: Extract<Row, { kind: 'summary' }>, y: number) {
     const parts = [`<g class="summary" data-group-key="${esc(r.key)}">`]
-    const dates = r.start && r.finish ? `${fmtShort(r.start)} – ${fmtShort(r.finish)}` : 'Unavailable'
-    const crit =
-      r.critical === 'critical' ? 'Contains critical tasks (source)' : r.critical === 'not-critical' ? 'No critical tasks (source)' : 'Criticality unavailable'
+    const dates = r.start && r.finish ? S.timeline.startFinish(fmtShort(r.start), fmtShort(r.finish)) : S.unavailable
+    const crit = S.timeline.summaryCrit[r.critical]
     parts.push(`<title>${esc([r.label, dates, crit].join('\n'))}</title>`)
     if (r.start && r.finish) {
       const s = layout.span(r.start, r.finish)
       parts.push(`<rect x="${n(s.x)}" y="${n(y + 11)}" width="${n(s.width)}" height="14" rx="3" fill="${color(r.critical === 'critical' ? 'critical' : 'task')}"/>`)
       parts.push(txt(s.x + s.width + 8, y + 22, 12, 'muted', fmtShort(r.finish)))
     } else if (!r.start && !r.finish) {
-      parts.push(unavailable(x0 + 8, y, 'Dates unavailable'))
+      parts.push(unavailable(x0 + 8, y, S.timeline.datesUnavailable))
     }
     parts.push('</g>')
     bars.push(parts.join(''))
@@ -289,8 +258,8 @@ export function renderTimeline(o: TimelineOptions): string {
       const cx = layout.cx(date)
       const cy = y + 18
       const h = 7
-      const label = `${labelOf(t)} · ${fmtShort(date)}`
-      const title = [labelOf(t), ...(labelOf(t) !== t.name ? [`Source name: ${t.name}`] : []), fmtShort(date), critWording(t.critical)].join('\n')
+      const label = S.timeline.milestoneLabel(labelOf(t), fmtShort(date))
+      const title = [labelOf(t), ...(labelOf(t) !== t.name ? [S.timeline.sourceName(t.name)] : []), fmtShort(date), critWording(t.critical)].join('\n')
       bars.push(
         `<g class="bar" data-task-id="${esc(id)}"><title>${esc(title)}</title>` +
           `<polygon points="${n(cx)},${cy - h} ${n(cx + h)},${cy} ${n(cx)},${cy + h} ${n(cx - h)},${cy}" fill="${color('milestone')}"/>` +
@@ -367,10 +336,10 @@ export function renderTimeline(o: TimelineOptions): string {
         }
         const pn = labelOf(pred)
         const sn = labelOf(succ)
-        const detail = unknown ? 'type unknown (not stated in source)' : `${DEP_NAMES[d.type as Exclude<DependencyType, 'unknown'>]} · ${lagText(d.lagDays)}`
+        const detail = unknown ? S.timeline.depTypeUnknown : S.timeline.depDetail(S.drawer.depType[d.type], d.lagDays === null ? S.timeline.lagNotStated : S.timeline.lag(d.lagDays))
         deps.push(
           `<path class="dep" data-pred-id="${esc(pred.id)}" data-succ-id="${esc(succ.id)}" data-dep-type="${d.type}" d="${path}" fill="none" stroke="${color(stroke)}" stroke-width="${width}"` +
-            `${unknown ? ' stroke-dasharray="2 3"' : ''} marker-end="url(#${marker})"><title>${esc(`${pn} → ${sn} · ${detail}`)}</title></path>`,
+            `${unknown ? ' stroke-dasharray="2 3"' : ''} marker-end="url(#${marker})"><title>${esc(S.timeline.depTitle(pn, sn, detail))}</title></path>`,
         )
       }
     }
@@ -390,9 +359,9 @@ export function renderTimeline(o: TimelineOptions): string {
     const g = geo.get(first.taskId)!
     const row = rowOfGeo.get(first.taskId)!
     const total = list.reduce((a, h) => a + h.count, 0)
-    const word = first.direction === 'predecessor' ? 'predecessor' : 'successor'
-    const lines = list.map((h) => `${plural(h.count, word)} hidden (${REASON_TEXT[h.reason]})`)
-    const label = `${total} hidden`
+    const word = first.direction === 'predecessor' ? S.timeline.predecessor : S.timeline.successor
+    const lines = list.map((h) => S.timeline.hiddenLine(plural(h.count, word), S.timeline.hiddenReason[h.reason]))
+    const label = S.timeline.hiddenCount(total)
     const w = textWidth(label, 12) + 14
     const y = layout.y(row) + (rowH - 18) / 2
     const x = first.direction === 'predecessor' ? g.minX - 6 - w : g.maxX + 6
@@ -415,7 +384,7 @@ export function renderTimeline(o: TimelineOptions): string {
 
   const out: string[] = []
   out.push(
-    `<svg xmlns="http://www.w3.org/2000/svg" class="tl-svg" width="${n(totalW)}" height="${n(H)}" viewBox="0 0 ${n(totalW)} ${n(H)}" font-family="${esc(font.text)}" role="img" aria-label="Timeline, ${esc(VIEW_LABELS[view])} view">`,
+    `<svg xmlns="http://www.w3.org/2000/svg" class="tl-svg" width="${n(totalW)}" height="${n(H)}" viewBox="0 0 ${n(totalW)} ${n(H)}" font-family="${esc(font.text)}" role="img" aria-label="${esc(S.timeline.ariaLabel(S.timeline.viewLabels[view]))}">`,
   )
   out.push(defs)
   out.push(`<rect width="${n(totalW)}" height="${n(H)}" fill="${color('surface')}"/>`)

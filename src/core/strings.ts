@@ -1,12 +1,54 @@
-// Every user-facing string in the web app. Components import from here; no inline copy.
+// Every user-facing string (web app and the shared SVG renderer). One file, no inline copy elsewhere.
+// Pure: no DOM, no Node.
 
-import type { ViewId } from '../core/views'
+import type { ViewId } from './views'
 
 const plural = (n: number, one: string, many: string) => `${n} ${n === 1 ? one : many}`
 
 export const S = {
   appName: 'Streamline',
   unavailable: 'Unavailable',
+
+  workstreams: {
+    ungrouped: 'No workstream',
+    milestones: 'Key milestones',
+  },
+
+  // Text drawn into the shared SVG timeline (screen and every export). Wording is asserted by tests.
+  timeline: {
+    viewLabels: { executive: 'Executive', detailed: 'Detailed', dependencies: 'Dependencies', workstreams: 'Workstreams', critical: 'Critical' } satisfies Record<ViewId, string>,
+    months: ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'],
+    ariaLabel: (view: string) => `Timeline, ${view} view`,
+    today: (date: string) => `Today, ${date}`,
+    sourceName: (name: string) => `Source name: ${name}`,
+    startFinish: (start: string, finish: string) => `${start} – ${finish}`,
+    startOnly: (start: string) => `Start ${start}, finish unavailable`,
+    finishOnly: (finish: string) => `Start unavailable, finish ${finish}`,
+    startUnavailable: 'Start unavailable',
+    finishUnavailable: 'Finish unavailable',
+    datesUnavailable: 'Dates unavailable',
+    crit: {
+      critical: 'Critical (source)',
+      'not-critical': 'Not critical (source)',
+      unavailable: 'Criticality unavailable',
+    },
+    summaryCrit: {
+      critical: 'Contains critical tasks (source)',
+      'not-critical': 'No critical tasks (source)',
+      unavailable: 'Criticality unavailable',
+    },
+    milestoneLabel: (label: string, date: string) => `${label} · ${date}`,
+    depTypeUnknown: 'type unknown (not stated in source)',
+    depDetail: (type: string, lag: string) => `${type} · ${lag}`,
+    depTitle: (pred: string, succ: string, detail: string) => `${pred} → ${succ} · ${detail}`,
+    lagNotStated: 'lag not stated',
+    lag: (n: number) => `lag ${n < 0 ? '-' : '+'}${Math.abs(n)}d`,
+    predecessor: ['predecessor', 'predecessors'],
+    successor: ['successor', 'successors'],
+    hiddenLine: (count: string, reason: string) => `${count} hidden (${reason})`,
+    hiddenReason: { filtered: 'filtered out', collapsed: 'in a collapsed group', 'other-page': 'on another page', view: 'not in this view' },
+    hiddenCount: (n: number) => `${n} hidden`,
+  },
 
   nav: {
     label: 'Main',
@@ -32,6 +74,7 @@ export const S = {
     saveBaseline: 'Save baseline',
     export: 'Export',
     breadcrumbRoot: 'Schedules',
+    breadcrumbLabel: 'Breadcrumb',
   },
 
   landing: {
@@ -327,6 +370,9 @@ export const S = {
     apiDown: 'Streamline could not reach its local service. Start it with "npm start" and reload.',
     notFound: 'That schedule no longer exists.',
     backToList: 'Back to schedules',
+    requestFailed: (status: number) => `Request failed (${status}).`,
+    exportRequestFailed: (status: number) => `Export failed (${status}).`,
+    apiDownShort: 'Streamline could not reach its local service.',
     todayOutside: 'Today is outside this schedule\'s dates.',
   },
 }

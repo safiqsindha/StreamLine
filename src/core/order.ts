@@ -1,8 +1,9 @@
 // Display groups and the one task ordering comparator.
 
+import { S } from './strings'
 import type { Presentation, Schedule, Task } from './model'
 
-export const UNGROUPED_LABEL = 'No workstream'
+export const UNGROUPED_LABEL = S.workstreams.ungrouped
 export const UNGROUPED_KEY = ''
 
 export interface DisplayGroup {

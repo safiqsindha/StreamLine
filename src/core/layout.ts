@@ -14,7 +14,8 @@ export const PIXELS_PER_DAY: Record<Zoom, number> = { day: 28, week: 10, month: 
 
 /** Space reserved after the last date so end-of-bar labels stay on canvas. */
 const TRAILING_LABEL_PX = 180
-const LEADING_PAD_DAYS = 3
+/** Space reserved before the first date for hidden-dependency markers. */
+const LEADING_PAD_PX = 72
 
 export interface DateRange {
   start: number // day number, inclusive
@@ -52,7 +53,7 @@ export function computeRange(dates: Iterable<string | null>, zoom: Zoom): DateRa
     if (n > hi) hi = n
   }
   if (!Number.isFinite(lo)) return null
-  lo -= LEADING_PAD_DAYS
+  lo -= Math.max(3, Math.ceil(LEADING_PAD_PX / PIXELS_PER_DAY[zoom]))
   lo -= (weekday(lo) + 6) % 7
   hi += Math.ceil(TRAILING_LABEL_PX / PIXELS_PER_DAY[zoom])
   return { start: lo, end: hi }

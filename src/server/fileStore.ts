@@ -1,4 +1,4 @@
-import { mkdir, readFile, readdir, rename, rm, writeFile } from 'node:fs/promises'
+import { link, mkdir, readFile, readdir, rename, rm, writeFile } from 'node:fs/promises'
 import { join, resolve } from 'node:path'
 import { randomUUID } from 'node:crypto'
 import type { Baseline, Presentation, Schedule, ScheduleMeta } from '../core/model'
@@ -51,19 +51,18 @@ export class FileStore implements Store {
       await mkdir(join(path, '..'), { recursive: true })
       await writeFile(tmp, JSON.stringify(value, null, 2), 'utf8')
       if (exclusive) {
-        const exists = await readFile(path).then(
-          () => true,
-          (e) => {
-            if (isMissing(e)) return false
-            throw e
-          },
-        )
-        if (exists) {
+        // link() fails if the target exists, so creation is atomic and never overwrites.
+        try {
+          await link(tmp, path)
+        } catch (e) {
+          if ((e as NodeJS.ErrnoException).code === 'EEXIST') throw new StoreError(`A ${what} with this ID already exists and cannot be changed.`)
+          throw e
+        } finally {
           await rm(tmp, { force: true })
-          throw new StoreError(`A ${what} with this ID already exists and cannot be changed.`)
         }
+      } else {
+        await rename(tmp, path)
       }
-      await rename(tmp, path)
     } catch (e) {
       await rm(tmp, { force: true }).catch(() => undefined)
       if (e instanceof StoreError) throw e

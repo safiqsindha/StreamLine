@@ -433,11 +433,11 @@ export function createApp(store: Store, opts: AppOptions = {}): (req: IncomingMe
     const next: Presentation = { ...current, tasks: { ...current.tasks } }
 
     for (const key of Object.keys(body)) {
-      if (['displayName', 'groupOrder', 'theme', 'tasks'].includes(key)) continue
+      if (['groupOrder', 'theme', 'tasks'].includes(key)) continue
       throw bad(SOURCE_FIELD_KEYS.has(key) ? SOURCE_FIELDS_MESSAGE : `"${key}" is not a presentation field.`)
     }
 
-    for (const key of ['displayName', 'theme'] as const) {
+    for (const key of ['theme'] as const) {
       if (!(key in body)) continue
       const v = body[key]
       if (v === null || v === '') delete next[key]

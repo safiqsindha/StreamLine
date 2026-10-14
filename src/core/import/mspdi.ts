@@ -243,14 +243,20 @@ export function parseMspdi(xml: string, filename: string): ParsedSchedule {
       let lagDays: number | null = null
       if (lag !== undefined) {
         const format = int(p, 'LagFormat')
-        if (format !== undefined && PERCENT_FORMATS.has(format)) {
+        if (format === undefined) {
+          issues.push({
+            row,
+            message: `Task ${uid} ("${name}") has a lag from task ${pid} without a lag format, so Streamline cannot tell working days from calendar days. The lag is shown as unavailable.`,
+            severity: 'warning',
+          })
+        } else if (PERCENT_FORMATS.has(format)) {
           issues.push({
             row,
             message: `Task ${uid} ("${name}") has a lag from task ${pid} stated as a percentage of duration. Streamline cannot convert that to days, so the lag is shown as unavailable.`,
             severity: 'warning',
           })
         } else {
-          const perDay = format !== undefined && ELAPSED_FORMATS.has(format) ? MINUTES_PER_ELAPSED_DAY : mpd
+          const perDay = ELAPSED_FORMATS.has(format) ? MINUTES_PER_ELAPSED_DAY : mpd
           lagDays = round(lag / 10 / perDay, 2)
         }
       }

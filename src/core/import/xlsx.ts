@@ -81,6 +81,12 @@ function parseDateText(s: string): string | null {
   return null
 }
 
+/** A slash date such as 03/04/2026 that reads differently as month/day and day/month. */
+function isAmbiguousSlashDate(v: unknown): boolean {
+  const m = typeof v === 'string' ? /^(\d{1,2})\/(\d{1,2})\/\d{4}/.exec(v.trim()) : null
+  return !!m && +m[1] <= 12 && +m[2] <= 12 && m[1] !== m[2]
+}
+
 /** Returns an ISO date, null for empty, or undefined when the value is present but unreadable. */
 function parseDate(v: unknown): string | null | undefined {
   if (v === null || v === undefined) return null
@@ -247,6 +253,7 @@ export async function parseXlsx(bytes: Uint8Array, filename: string, mapping?: C
   }
   const pending: Pending[] = []
   const seenIds = new Set<string>()
+  let ambiguousDate: string | null = null
   const occurrences = new Map<string, number>()
 
   for (let r = hit.rowNumber + 1; r <= hit.sheet.rowCount; r++) {
@@ -272,11 +279,12 @@ export async function parseXlsx(bytes: Uint8Array, filename: string, mapping?: C
     const dates: Record<'start' | 'finish', string | null> = { start: null, finish: null }
     for (const f of ['start', 'finish'] as const) {
       const raw = get(row, f)
+      if (ambiguousDate === null && isAmbiguousSlashDate(raw)) ambiguousDate = textOf(raw)
       const d = parseDate(raw)
       if (d === undefined) {
         warn(
           r,
-          `Row ${r}: the "${label(f)}" column has a value Streamline could not read as a date ("${textOf(raw)}"). The date was left empty.`,
+          `Row ${r}: the "${label(f)}" column has a value Streamline could not read as a date ("${textOf(raw)}"). It is shown as Unavailable.`,
         )
         dates[f] = null
       } else {
@@ -371,6 +379,13 @@ export async function parseXlsx(bytes: Uint8Array, filename: string, mapping?: C
       seenWs.add(t.workstream)
       workstreams.push({ id: t.workstream, name: t.workstream })
     }
+  }
+
+  if (ambiguousDate !== null) {
+    issues.push({
+      message: `Some dates, such as "${ambiguousDate}", can be read as month/day or day/month. Streamline read them as month/day. If that is wrong, store the dates as Excel dates or as YYYY-MM-DD and import again.`,
+      severity: 'warning',
+    })
   }
 
   return {

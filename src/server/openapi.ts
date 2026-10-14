@@ -145,7 +145,6 @@ export const openApiDocument = {
           content: json({
             type: 'object',
             properties: {
-              displayName: { type: ['string', 'null'] },
               groupOrder: { type: ['array', 'null'], items: { type: 'string' } },
               theme: { type: ['string', 'null'] },
               tasks: { type: 'object', additionalProperties: { oneOf: [ref('TaskPresentation'), { type: 'null' }] } },
@@ -218,7 +217,7 @@ export const openApiDocument = {
       ScheduleMeta: { type: 'object', required: ['id', 'name', 'createdAt', 'source', 'taskCount'], properties: { id: { type: 'string' }, name: { type: 'string' }, createdAt: { type: 'string' }, source: { type: 'object' }, taskCount: { type: 'integer' } } },
       Schedule: { type: 'object', required: ['id', 'name', 'createdAt', 'source', 'workstreams', 'tasks'], properties: { id: { type: 'string' }, name: { type: 'string' }, createdAt: { type: 'string' }, source: { type: 'object' }, workstreams: { type: 'array', items: { type: 'object' } }, tasks: { type: 'array', items: { type: 'object' } } } },
       TaskPresentation: { type: 'object', properties: { displayLabel: { type: 'string' }, displayGroup: { type: 'string' }, order: { type: 'number' }, emphasis: { type: 'string', enum: ['none', 'highlight', 'muted'] } } },
-      Presentation: { type: 'object', required: ['scheduleId', 'updatedAt', 'tasks'], properties: { scheduleId: { type: 'string' }, updatedAt: { type: 'string' }, displayName: { type: 'string' }, tasks: { type: 'object', additionalProperties: ref('TaskPresentation') }, groupOrder: { type: 'array', items: { type: 'string' } }, theme: { type: 'string' } } },
+      Presentation: { type: 'object', required: ['scheduleId', 'updatedAt', 'tasks'], properties: { scheduleId: { type: 'string' }, updatedAt: { type: 'string' }, tasks: { type: 'object', additionalProperties: ref('TaskPresentation') }, groupOrder: { type: 'array', items: { type: 'string' } }, theme: { type: 'string' } } },
       Baseline: { type: 'object', required: ['id', 'scheduleId', 'name', 'createdAt', 'tasks'], properties: { id: { type: 'string' }, scheduleId: { type: 'string' }, name: { type: 'string' }, createdAt: { type: 'string' }, tasks: { type: 'array', items: { type: 'object' } } } },
       ImportPreview: {
         type: 'object',

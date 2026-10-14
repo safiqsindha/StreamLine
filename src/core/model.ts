@@ -43,6 +43,7 @@ export interface ScheduleSource {
 
 export interface Schedule {
   id: string
+  /** The schedule's name in Streamline. Chosen at import (defaults to the file name) and renameable; not a source fact. */
   name: string
   createdAt: string
   source: ScheduleSource
@@ -75,8 +76,6 @@ export interface TaskPresentation {
 export interface Presentation {
   scheduleId: string
   updatedAt: string
-  /** Display name for the schedule; the source name is kept in Schedule.name. */
-  displayName?: string
   tasks: Record<string, TaskPresentation>
   /** Display ordering of groups (by display group name). */
   groupOrder?: string[]

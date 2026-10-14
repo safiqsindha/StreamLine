@@ -1,0 +1,1141 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Streamline Prototype</title>
+<!--
+  STREAMLINE — working UI prototype (handoff reference for Scout)
+
+  Everything on screen is driven by data. The ONLY place data comes from is the
+  `api` object in section 2 below. To make this real:
+    1. Replace each method in `api` with a call to the Streamline API (same names,
+       same return shapes).
+    2. Delete SAMPLE_SCHEDULE / MOCK_DB.
+  Nothing in sections 3-5 should need hardcoded positions, dates or names.
+  See SCOUT_HANDOFF.md for the full contract.
+-->
+<style>
+:root{
+  --bg:#F7F7F5; --surface:#FFFFFF; --surface-2:#FBFBFA; --band:#F5F6F3;
+  --ink:#1A1D21; --ink-2:#3C4248; --muted:#5B6168; --line:#E3E4E1; --line-2:#EFF0ED;
+  --accent:#C2410C;      /* critical path */
+  --task:#A9BEDE;        /* non-critical task */
+  --blue:#2F5A94; --blue-bg:#E8EEF7; --select:#EEF3FA;
+  --danger:#9F1239; --danger-bg:#FDECEF; --ok:#2E7D4F;
+  --warn-bg:#FFF4E5; --warn-ink:#7A3E00;
+  --font:"Segoe UI Variable Text","Segoe UI",system-ui,-apple-system,sans-serif;
+  --mono:"Cascadia Mono",Consolas,ui-monospace,"SFMono-Regular",monospace;
+  --row:36px; --head:44px;
+}
+*{box-sizing:border-box}
+html,body{margin:0;background:var(--bg);color:var(--ink);font-family:var(--font);font-size:14px}
+button,input,select{font:inherit;color:inherit}
+button{cursor:pointer}
+:focus-visible{outline:2px solid var(--blue);outline-offset:2px}
+a{color:var(--blue)}
+
+.app{display:grid;grid-template-columns:216px minmax(0,1fr);min-height:100vh}
+.sidebar{background:var(--surface-2);border-right:1px solid var(--line);padding:18px 12px;display:flex;flex-direction:column;gap:2px}
+.brand{display:flex;align-items:center;gap:10px;padding:4px 8px 18px;font-weight:600;font-size:15px}
+.brand-mark{width:22px;height:22px;border-radius:6px;background:var(--ink);display:grid;place-items:center}
+.nav-btn{display:block;width:100%;text-align:left;border:0;background:transparent;padding:8px 10px;border-radius:6px;color:var(--ink-2);min-height:36px}
+.nav-btn:hover{background:#F0F1EE}
+.nav-btn[aria-current="page"]{background:#ECEDEA;color:var(--ink);font-weight:600}
+.side-label{margin:20px 10px 6px;font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:.06em}
+.source-card{margin:0 2px;padding:10px;border:1px solid var(--line);border-radius:8px;background:var(--surface);font-size:13px;display:flex;flex-direction:column;gap:4px}
+.dot{width:8px;height:8px;border-radius:50%;background:var(--ok);display:inline-block}
+.muted{color:var(--muted)}
+.mono{font-family:var(--mono);font-size:12px}
+
+main{min-width:0;display:flex;flex-direction:column}
+.topbar{display:flex;flex-wrap:wrap;align-items:center;gap:10px;padding:12px 24px;border-bottom:1px solid var(--line);background:var(--surface)}
+.crumb{color:var(--muted)}
+.crumb b{color:var(--ink)}
+.spacer{flex:1 1 auto}
+.btn{border:1px solid #D6D8D4;background:var(--surface);border-radius:8px;padding:0 14px;min-height:36px;font-size:13px;font-weight:500}
+.btn:hover{background:#F3F4F1}
+.btn.primary{background:var(--ink);border-color:var(--ink);color:#fff}
+.btn.primary:hover{background:#2C3036}
+.btn.small{min-height:30px;padding:0 10px;font-size:12px}
+.btn:disabled{opacity:.5;cursor:not-allowed}
+.cmd-btn{display:flex;align-items:center;gap:8px;min-width:240px;text-align:left;color:var(--muted);background:var(--bg);border:1px solid var(--line);border-radius:8px;padding:0 10px;min-height:36px;font-size:13px}
+.kbd{font-family:var(--mono);font-size:11px;border:1px solid #D6D8D4;border-radius:4px;padding:1px 5px;color:var(--muted);background:var(--surface)}
+.menu-wrap{position:relative}
+.menu{position:absolute;right:0;top:calc(100% + 6px);background:var(--surface);border:1px solid var(--line);border-radius:10px;box-shadow:0 10px 30px rgba(20,22,25,.12);padding:6px;min-width:200px;z-index:30;display:none}
+.menu.open{display:block}
+.menu button{display:flex;justify-content:space-between;width:100%;border:0;background:transparent;text-align:left;padding:8px 10px;border-radius:6px;min-height:36px}
+.menu button:hover{background:#F3F4F1}
+
+.banner{display:none;align-items:center;gap:12px;flex-wrap:wrap;padding:10px 24px;background:var(--warn-bg);color:var(--warn-ink);border-bottom:1px solid #F3D9B5;font-size:13px}
+.banner.show{display:flex}
+
+.page{display:none;flex:1 1 auto;flex-direction:column}
+.page.active{display:flex}
+.toolbar{display:flex;flex-wrap:wrap;align-items:center;gap:8px 16px;padding:10px 24px;border-bottom:1px solid var(--line);background:var(--surface)}
+.tabs{display:flex;flex-wrap:wrap;gap:4px}
+.tab{border:0;background:transparent;border-radius:6px;padding:0 12px;min-height:32px;font-size:13px;color:var(--muted)}
+.tab:hover{background:#F3F4F1}
+.tab[aria-selected="true"]{background:#ECEDEA;color:var(--ink);font-weight:600}
+.controls{display:flex;flex-wrap:wrap;align-items:center;gap:10px;font-size:13px;color:var(--ink-2)}
+.controls label{display:flex;align-items:center;gap:6px}
+.controls select{border:1px solid var(--line);border-radius:6px;background:var(--surface);min-height:30px;padding:0 6px}
+.seg{display:flex;border:1px solid var(--line);border-radius:6px;overflow:hidden}
+.seg button{border:0;background:var(--surface);padding:0 10px;min-height:30px;font-size:12px}
+.seg button[aria-pressed="true"]{background:#ECEDEA;font-weight:600}
+
+.content{padding:18px 24px;display:flex;flex-direction:column;gap:14px;flex:1 1 auto;min-height:0}
+.chart-wrap{position:relative;border:1px solid var(--line);border-radius:10px;background:var(--surface);overflow:hidden}
+.chart{display:flex;overflow:auto;max-height:calc(100vh - 290px);min-height:200px}
+.grid-pane{position:sticky;left:0;z-index:2;background:var(--surface);border-right:1px solid var(--line);flex:none}
+.tl-pane{flex:none}
+.tl-svg{display:block;user-select:none}
+.tl-svg .bar{cursor:grab}
+.tl-svg .bar:active{cursor:grabbing}
+.ghead,.grow{display:grid;align-items:center}
+.ghead{height:var(--head);border-bottom:1px solid var(--line);background:var(--surface-2);font-size:12px;color:var(--muted)}
+.ghead>span,.grow>span{padding:0 8px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.grow{height:var(--row);border:0;border-bottom:1px solid var(--line-2);background:transparent;width:100%;text-align:left;font-size:13px;padding:0}
+button.grow:hover{background:#F7F8F6}
+.grow.group{background:var(--band);font-size:12px;font-weight:600;text-transform:uppercase;letter-spacing:.04em;color:var(--ink-2)}
+.grow.selected{background:var(--select)}
+.grow.group .mono{text-transform:none;letter-spacing:0;font-weight:400}
+.grow .name{padding-left:24px;display:flex;align-items:center;gap:6px}
+.grow.group .name,.grow.summary .name{padding-left:8px}
+.chev{display:inline-block;transition:transform .15s}
+.chev.closed{transform:rotate(-90deg)}
+.pill{font-size:11px;font-weight:600;border-radius:4px;padding:1px 6px;flex:none}
+.pill.bad{background:var(--danger-bg);color:var(--danger)}
+.crit-text{color:var(--accent);font-weight:600}
+.neg{color:var(--danger);font-weight:600}
+
+.legend{display:flex;flex-wrap:wrap;gap:14px;font-size:12px;color:var(--muted);align-items:center}
+.legend span{display:flex;align-items:center;gap:6px}
+.sw{width:18px;height:8px;border-radius:2px;display:inline-block}
+.activity-strip{display:flex;align-items:center;gap:10px;padding:10px 14px;border:1px solid var(--line);border-radius:10px;background:var(--surface);font-size:13px;flex-wrap:wrap}
+.tag{font-family:var(--mono);font-size:11px;font-weight:600;border-radius:4px;padding:2px 6px;background:var(--blue-bg);color:var(--blue)}
+.tag.ui{background:#ECEDEA;color:var(--ink-2)}
+.tag.sync{background:#E6F2EA;color:#1F5C39}
+
+.drawer{position:absolute;top:0;right:0;bottom:0;width:340px;max-width:100%;background:var(--surface);border-left:1px solid var(--line);box-shadow:-12px 0 30px rgba(20,22,25,.08);z-index:5;display:none;flex-direction:column;overflow:auto}
+.drawer.open{display:flex}
+.drawer header{display:flex;align-items:flex-start;gap:8px;padding:16px;border-bottom:1px solid var(--line)}
+.drawer h2{margin:0;font-size:16px;line-height:1.3}
+.drawer .body{padding:16px;display:flex;flex-direction:column;gap:14px}
+.field{display:flex;flex-direction:column;gap:4px;font-size:12px;color:var(--muted)}
+.field input{border:1px solid var(--line);border-radius:6px;min-height:34px;padding:0 8px;color:var(--ink);font-size:13px;background:var(--surface)}
+.field-row{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.facts{display:grid;grid-template-columns:auto 1fr;gap:6px 12px;font-size:13px}
+.facts dt{color:var(--muted)}
+.facts dd{margin:0}
+.linklist{display:flex;flex-wrap:wrap;gap:6px}
+.chip{border:1px solid var(--line);background:var(--surface-2);border-radius:999px;padding:3px 10px;font-size:12px;min-height:28px}
+.chip:hover{background:#F0F1EE}
+.icon-btn{border:0;background:transparent;border-radius:6px;width:36px;height:36px;display:grid;place-items:center;flex:none}
+.icon-btn:hover{background:#F0F1EE}
+
+.panel{border:1px solid var(--line);border-radius:10px;background:var(--surface);padding:18px}
+.panel h2{margin:0 0 4px;font-size:16px}
+.panel p{margin:0 0 12px;color:var(--muted)}
+.cards{display:grid;grid-template-columns:repeat(auto-fill,minmax(240px,1fr));gap:12px}
+.card{border:1px solid var(--line);border-radius:10px;background:var(--surface);padding:16px;display:flex;flex-direction:column;gap:8px}
+.card h3{margin:0;font-size:15px}
+.card .who{font-size:12px;color:var(--muted)}
+.card p{margin:0;font-size:13px;color:var(--ink-2);flex:1 1 auto}
+.table-box{overflow-x:auto}
+table{border-collapse:collapse;width:100%;font-size:13px}
+th,td{text-align:left;padding:9px 10px;border-bottom:1px solid var(--line-2);vertical-align:top}
+th{font-size:12px;font-weight:600;color:var(--muted);background:var(--surface-2)}
+.empty{color:var(--muted);padding:14px 10px}
+.method{font-family:var(--mono);font-size:11px;font-weight:700;padding:2px 6px;border-radius:4px;background:#ECEDEA}
+.sim-row{display:flex;flex-wrap:wrap;gap:8px}
+
+dialog{border:1px solid var(--line);border-radius:12px;padding:0;box-shadow:0 20px 60px rgba(20,22,25,.25);width:min(560px,calc(100vw - 32px))}
+dialog::backdrop{background:rgba(20,22,25,.3)}
+.pal-input{width:100%;border:0;border-bottom:1px solid var(--line);padding:14px 16px;font-size:15px;outline:none}
+.pal-list{list-style:none;margin:0;padding:6px;max-height:360px;overflow:auto}
+.pal-list li{display:flex;justify-content:space-between;gap:12px;padding:9px 10px;border-radius:6px;cursor:pointer;font-size:13px}
+.pal-list li[aria-selected="true"]{background:var(--select)}
+.pal-list li .muted{font-size:12px}
+.dlg-body{padding:18px;display:flex;flex-direction:column;gap:14px}
+.dlg-body h2{margin:0;font-size:16px}
+.dlg-actions{display:flex;justify-content:flex-end;gap:8px}
+
+.toast-box{position:fixed;bottom:18px;left:50%;transform:translateX(-50%);display:flex;flex-direction:column;gap:8px;z-index:60;align-items:center}
+.toast{background:var(--ink);color:#fff;border-radius:8px;padding:10px 14px;font-size:13px;box-shadow:0 8px 24px rgba(0,0,0,.2);max-width:min(520px,calc(100vw - 32px))}
+.toast.err{background:var(--danger)}
+
+@media (max-width:860px){
+  .app{grid-template-columns:1fr}
+  .sidebar{flex-direction:row;flex-wrap:wrap;align-items:center;padding:10px 16px;border-right:0;border-bottom:1px solid var(--line)}
+  .brand{padding:4px 8px}
+  .nav-btn{width:auto}
+  .side-label,.source-card{display:none}
+  .topbar,.toolbar{padding:10px 16px}
+  .content{padding:14px 16px}
+  .cmd-btn{min-width:0;flex:1 1 200px}
+  .chart{max-height:none}
+}
+</style>
+</head>
+<body>
+<div class="app">
+  <nav class="sidebar" aria-label="Main">
+    <div class="brand">
+      <span class="brand-mark" aria-hidden="true"><svg width="14" height="14" viewBox="0 0 14 14" fill="none" stroke="#F7F7F5" stroke-width="1.6" stroke-linecap="round"><path d="M2 4h6M5 7h7M2 10h5"/></svg></span>
+      Streamline
+    </div>
+    <button class="nav-btn" data-action="page" data-page="schedules">Schedules</button>
+    <button class="nav-btn" data-action="page" data-page="views">Views</button>
+    <button class="nav-btn" data-action="page" data-page="baselines">Baselines</button>
+    <button class="nav-btn" data-action="page" data-page="exports">Exports</button>
+    <button class="nav-btn" data-action="page" data-page="api">API &amp; agents</button>
+    <div class="side-label">Source</div>
+    <div class="source-card">
+      <div><span class="dot" aria-hidden="true"></span> <b>Live sync</b></div>
+      <div class="muted" id="srcFile">—</div>
+      <div class="muted">Two-way via Graph</div>
+      <div class="muted" id="srcSynced">Not synced yet</div>
+      <button class="btn small" data-action="sync" style="margin-top:6px">Sync now</button>
+    </div>
+  </nav>
+
+  <main>
+    <header class="topbar">
+      <div class="crumb">Schedules / <b id="schedName">—</b></div>
+      <div class="spacer"></div>
+      <button class="cmd-btn" data-action="palette" aria-label="Open command menu">
+        <svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" aria-hidden="true"><circle cx="7" cy="7" r="4.5"/><path d="M10.5 10.5L14 14"/></svg>
+        <span style="flex:1">Search or run a command</span><span class="kbd">Ctrl K</span>
+      </button>
+      <button class="btn" data-action="baseline-dialog">Save baseline</button>
+      <div class="menu-wrap">
+        <button class="btn primary" data-action="export-menu" aria-haspopup="true" aria-expanded="false" id="exportBtn">Export</button>
+        <div class="menu" id="exportMenu" role="menu">
+          <button role="menuitem" data-action="export" data-format="png">Image (PNG) <span class="muted">current view</span></button>
+          <button role="menuitem" data-action="export" data-format="svg">Vector (SVG) <span class="muted">current view</span></button>
+          <button role="menuitem" data-action="export" data-format="csv">Spreadsheet (CSV)</button>
+          <button role="menuitem" data-action="export" data-format="json">Data (JSON)</button>
+        </div>
+      </div>
+    </header>
+
+    <div class="banner" id="banner" role="alert">
+      <b>This schedule is open in another window.</b>
+      <span>Close one of them before editing so changes don't overwrite each other. Editing is paused.</span>
+      <span class="spacer"></span>
+      <button class="btn small" data-action="dismiss-banner">I closed the other one</button>
+    </div>
+
+    <!-- ============ SCHEDULES ============ -->
+    <section class="page" id="page-schedules" aria-label="Schedule">
+      <div class="toolbar">
+        <div class="tabs" role="tablist" aria-label="View">
+          <button class="tab" role="tab" data-action="view" data-view="executive">Executive</button>
+          <button class="tab" role="tab" data-action="view" data-view="detailed">Detailed</button>
+          <button class="tab" role="tab" data-action="view" data-view="dependencies">Dependencies</button>
+          <button class="tab" role="tab" data-action="view" data-view="workstreams">Workstreams</button>
+          <button class="tab" role="tab" data-action="view" data-view="critical">Critical path</button>
+        </div>
+        <div class="spacer"></div>
+        <div class="controls">
+          <label><input type="checkbox" id="depsToggle" checked> Dependencies</label>
+          <label>Compare to
+            <select id="compareSel"><option value="">No baseline</option></select>
+          </label>
+          <div class="seg" role="group" aria-label="Zoom">
+            <button data-action="zoom" data-zoom="week">Weeks</button>
+            <button data-action="zoom" data-zoom="month">Months</button>
+          </div>
+          <button class="btn small" data-action="today">Today</button>
+        </div>
+      </div>
+      <div class="content">
+        <div class="chart-wrap">
+          <div class="chart" id="chart">
+            <div class="grid-pane" id="gridPane"></div>
+            <div class="tl-pane" id="tlPane"></div>
+          </div>
+          <aside class="drawer" id="drawer" aria-label="Task details"></aside>
+        </div>
+        <div class="legend" id="legend"></div>
+        <div class="activity-strip" id="activityStrip"></div>
+      </div>
+    </section>
+
+    <!-- ============ VIEWS ============ -->
+    <section class="page" id="page-views" aria-label="Views">
+      <div class="content">
+        <div class="panel"><h2>Views</h2><p>One schedule, five views. Every view is computed from the same source, so nothing is copied or drifts.</p>
+          <div class="cards" id="viewCards"></div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ============ BASELINES ============ -->
+    <section class="page" id="page-baselines" aria-label="Baselines">
+      <div class="content">
+        <div class="panel">
+          <div style="display:flex;flex-wrap:wrap;align-items:center;gap:10px">
+            <div style="flex:1 1 260px"><h2>Baselines</h2><p>Locked snapshots of the schedule. Compare any of them against today's plan.</p></div>
+            <button class="btn primary" data-action="baseline-dialog">Save baseline</button>
+          </div>
+          <div class="table-box"><table><thead><tr><th>Name</th><th>Saved</th><th>Tasks</th><th>End date</th><th></th></tr></thead><tbody id="baselineRows"></tbody></table></div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ============ EXPORTS ============ -->
+    <section class="page" id="page-exports" aria-label="Exports">
+      <div class="content">
+        <div class="panel">
+          <h2>Exports</h2><p>Exports render the current view. Edit the source schedule, then export again.</p>
+          <div class="sim-row" style="margin-bottom:14px">
+            <button class="btn" data-action="export" data-format="png">Export PNG</button>
+            <button class="btn" data-action="export" data-format="svg">Export SVG</button>
+            <button class="btn" data-action="export" data-format="csv">Export CSV</button>
+            <button class="btn" data-action="export" data-format="json">Export JSON</button>
+          </div>
+          <div class="table-box"><table><thead><tr><th>When</th><th>Format</th><th>View</th><th>By</th></tr></thead><tbody id="exportRows"></tbody></table></div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ============ API & AGENTS ============ -->
+    <section class="page" id="page-api" aria-label="API and agents">
+      <div class="content">
+        <div class="panel">
+          <h2>API contract</h2><p>Everything in the UI goes through these calls. Agents use the same endpoints.</p>
+          <div class="table-box"><table><thead><tr><th>Call</th><th>Endpoint</th><th>What it does</th></tr></thead><tbody id="apiRows"></tbody></table></div>
+        </div>
+        <div class="panel">
+          <h2>Try it</h2><p>These simulate events the real backend will send.</p>
+          <div class="sim-row">
+            <button class="btn" data-action="sim-agent">Agent slips Board fab by 3 days</button>
+            <button class="btn" data-action="sim-excel">Excel edit arrives via Graph</button>
+            <button class="btn" data-action="sim-elsewhere">Open the file in a second window</button>
+          </div>
+        </div>
+        <div class="panel">
+          <h2>Activity</h2><p>Every change, who made it, and how it got here.</p>
+          <div class="table-box"><table><thead><tr><th>When</th><th>Source</th><th>Who</th><th>Change</th></tr></thead><tbody id="activityRows"></tbody></table></div>
+        </div>
+      </div>
+    </section>
+  </main>
+</div>
+
+<dialog id="palette" aria-label="Command menu">
+  <input class="pal-input" id="palInput" placeholder="Type a command or task name…" autocomplete="off" aria-controls="palList">
+  <ul class="pal-list" id="palList" role="listbox"></ul>
+</dialog>
+
+<dialog id="baselineDlg" aria-label="Save baseline">
+  <form method="dialog" class="dlg-body" id="baselineForm">
+    <h2>Save baseline</h2>
+    <label class="field">Name<input id="baselineName" required maxlength="80"></label>
+    <div class="dlg-actions">
+      <button class="btn" value="cancel" formnovalidate>Cancel</button>
+      <button class="btn primary" value="save">Save baseline</button>
+    </div>
+  </form>
+</dialog>
+
+<div class="toast-box" id="toasts" aria-live="polite"></div>
+
+<script>
+"use strict";
+/* =====================================================================
+   1. SAMPLE DATA  —  Scout: delete this once the API is wired up.
+   Shape = what GET /api/schedules/{id} should return.
+   ===================================================================== */
+const SAMPLE_SCHEDULE = {
+  id: "platform-evt",
+  name: "Platform EVT (sample)",
+  source: { type: "excel", file: "[SCHEDULE FILE].xlsx", sync: "graph-two-way" },
+  workstreams: [
+    { id: "design",     name: "Design",     color: "#2F5A94" },
+    { id: "build",      name: "Build",      color: "#6E95CC" },
+    { id: "validation", name: "Validation", color: "#B7CBE8" }
+  ],
+  // deps = predecessor task ids (finish-to-start)
+  tasks: [
+    { id: "T1", name: "Schematic freeze",  workstream: "design",     owner: "HW Eng",   start: "2026-10-08", finish: "2026-10-08", milestone: true,  deps: [] },
+    { id: "T2", name: "PCB layout",        workstream: "design",     owner: "Layout",   start: "2026-10-09", finish: "2026-10-26", milestone: false, deps: ["T1"] },
+    { id: "T9", name: "Component sourcing",workstream: "design",     owner: "Supplier", start: "2026-10-12", finish: "2026-11-06", milestone: false, deps: ["T1"] },
+    { id: "T3", name: "Board fab",         workstream: "design",     owner: "Supplier", start: "2026-10-27", finish: "2026-11-09", milestone: false, deps: ["T2"] },
+    { id: "T4", name: "EVT build",         workstream: "build",      owner: "Mfg",      start: "2026-11-10", finish: "2026-11-23", milestone: false, deps: ["T3", "T9"] },
+    { id: "T5", name: "Firmware bring-up", workstream: "build",      owner: "FW",       start: "2026-11-10", finish: "2026-11-30", milestone: false, deps: ["T3"] },
+    { id: "T6", name: "System qual",       workstream: "validation", owner: "Qual",     start: "2026-11-24", finish: "2026-12-14", milestone: false, deps: ["T4"] },
+    { id: "T7", name: "Thermal testing",   workstream: "validation", owner: "Thermal",  start: "2026-11-24", finish: "2026-12-10", milestone: false, deps: ["T4"] },
+    { id: "T8", name: "EVT exit review",   workstream: "validation", owner: "PM",       start: "2026-12-15", finish: "2026-12-15", milestone: true,  deps: ["T5", "T6", "T7"] }
+  ]
+};
+
+/* =====================================================================
+   2. API ADAPTER  —  Scout: replace the body of each method with a real
+   call. Keep the names and return shapes; nothing else needs to change.
+   ===================================================================== */
+const clone = (x) => JSON.parse(JSON.stringify(x));
+const MOCK_DB = {
+  schedule: clone(SAMPLE_SCHEDULE),
+  baselines: [],
+  exports: [],
+  activity: [],
+  listeners: []
+};
+MOCK_DB.baselines.push({ id: "B1", name: "Approved committed schedule", savedAt: new Date(Date.now() - 6 * 864e5).toISOString(), tasks: clone(SAMPLE_SCHEDULE.tasks) });
+
+const api = {
+  // GET /api/schedules/{id}
+  async getSchedule(id) { return clone(MOCK_DB.schedule); },
+
+  // PATCH /api/schedules/{id}/tasks/{taskId}   body: { start?, finish?, owner?, name? }
+  // Real backend validates, writes the change back to Excel through Graph, and returns the task.
+  async updateTask(id, taskId, patch, actor) {
+    const t = MOCK_DB.schedule.tasks.find((x) => x.id === taskId);
+    if (!t) throw new Error("Task not found");
+    const next = { ...t, ...patch };
+    if (next.milestone) next.finish = next.start;
+    if (dayNum(next.finish) < dayNum(next.start)) throw new Error("Finish can't be before start.");
+    const changes = ["name", "owner", "start", "finish"].filter((k) => t[k] !== next[k])
+      .map((k) => `${k} ${k === "start" || k === "finish" ? fmt(t[k]) : t[k]} → ${k === "start" || k === "finish" ? fmt(next[k]) : next[k]}`);
+    if (!changes.length) return clone(t);
+    Object.assign(t, next);
+    MOCK_DB.activity.unshift({ at: new Date().toISOString(), kind: actor.kind, who: actor.name, text: `${t.name}: ${changes.join(", ")}. Written back to source.` });
+    return clone(t);
+  },
+
+  // POST /api/schedules/{id}/baselines   body: { name }
+  async saveBaseline(id, name) {
+    const b = { id: "B" + (MOCK_DB.baselines.length + 1), name, savedAt: new Date().toISOString(), tasks: clone(MOCK_DB.schedule.tasks) };
+    MOCK_DB.baselines.unshift(b);
+    MOCK_DB.activity.unshift({ at: b.savedAt, kind: "ui", who: "You", text: `Saved baseline "${name}".` });
+    return clone(b);
+  },
+  // GET /api/schedules/{id}/baselines
+  async listBaselines(id) { return clone(MOCK_DB.baselines); },
+
+  // POST /api/schedules/{id}/exports   body: { format, view }  → file
+  // Prototype renders in the browser; production should render server-side so output is identical every time.
+  async recordExport(id, format, view) {
+    const e = { at: new Date().toISOString(), format, view, who: "You" };
+    MOCK_DB.exports.unshift(e);
+    return clone(e);
+  },
+  async listExports(id) { return clone(MOCK_DB.exports); },
+
+  // GET /api/schedules/{id}/activity
+  async listActivity(id) { return clone(MOCK_DB.activity); },
+
+  // POST /api/schedules/{id}/sync  — pull latest from the source file now
+  async syncNow(id) {
+    const at = new Date().toISOString();
+    MOCK_DB.activity.unshift({ at, kind: "sync", who: "Graph", text: `Pulled latest from ${MOCK_DB.schedule.source.file}. No changes.` });
+    return { at };
+  },
+
+  // GET /api/schedules/{id}/events  (SSE or WebSocket, fed by Graph webhooks)
+  subscribe(id, onChange) { MOCK_DB.listeners.push(onChange); return () => {}; },
+
+  // GET /api/schedules/{id}/sessions  — is this schedule open somewhere else?
+  async otherSessions(id) { return MOCK_DB.otherSessions || 0; }
+};
+
+// Mock-only helpers that stand in for things the backend pushes. Delete with the mock.
+const mock = {
+  async agentEdit() {
+    const t = MOCK_DB.schedule.tasks.find((x) => x.id === "T3");
+    await api.updateTask("platform-evt", "T3", { finish: addDays(t.finish, 3) }, { kind: "api", name: "schedule-agent" });
+    MOCK_DB.listeners.forEach((f) => f({ type: "task.updated", taskId: "T3" }));
+  },
+  async excelEdit() {
+    const t = MOCK_DB.schedule.tasks.find((x) => x.id === "T7");
+    await api.updateTask("platform-evt", "T7", { finish: addDays(t.finish, 2), owner: "Thermal Lab" }, { kind: "sync", name: "Excel via Graph" });
+    MOCK_DB.listeners.forEach((f) => f({ type: "task.updated", taskId: "T7" }));
+  },
+  openElsewhere(on) { MOCK_DB.otherSessions = on ? 1 : 0; MOCK_DB.listeners.forEach((f) => f({ type: "session.changed" })); }
+};
+
+/* =====================================================================
+   3. SCHEDULE LOGIC  —  pure functions, no DOM. Same rules should run
+   server-side so agents and the UI always agree.
+   ===================================================================== */
+const DAY = 864e5;
+function dayNum(iso) { return Math.round(Date.UTC(+iso.slice(0, 4), +iso.slice(5, 7) - 1, +iso.slice(8, 10)) / DAY); }
+function isoOf(d) { return new Date(d * DAY).toISOString().slice(0, 10); }
+function addDays(iso, n) { return isoOf(dayNum(iso) + n); }
+function fmt(iso) { return new Date(dayNum(iso) * DAY).toLocaleDateString("en-US", { month: "short", day: "numeric", timeZone: "UTC" }); }
+function durDays(t) { return t.milestone ? 0 : dayNum(t.finish) - dayNum(t.start) + 1; }
+function localTodayISO() { const d = new Date(); return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`; }
+
+// Critical path by backward pass. Float = how many days a task can slip before the end date moves.
+function analyze(tasks) {
+  const byId = new Map(tasks.map((t) => [t.id, t]));
+  const succ = new Map(tasks.map((t) => [t.id, []]));
+  tasks.forEach((t) => t.deps.forEach((d) => succ.has(d) && succ.get(d).push(t.id)));
+  const S = (t) => dayNum(t.start), F = (t) => dayNum(t.finish);
+  const end = Math.max(...tasks.map(F));
+  const LF = new Map(), LS = new Map(), onStack = new Set();
+  const visit = (id) => {
+    if (LF.has(id) || onStack.has(id)) return;
+    onStack.add(id);
+    const t = byId.get(id);
+    let lf = end;
+    for (const s of succ.get(id)) { visit(s); if (LS.has(s)) lf = Math.min(lf, LS.get(s) - 1); }
+    LF.set(id, lf); LS.set(id, lf - (F(t) - S(t)));
+    onStack.delete(id);
+  };
+  tasks.forEach((t) => visit(t.id));
+  const float = new Map(tasks.map((t) => [t.id, LF.get(t.id) - F(t)]));
+  const critical = new Set(tasks.filter((t) => float.get(t.id) <= 0).map((t) => t.id));
+  const conflicts = new Map(); // taskId -> [predecessor ids it starts too early for]
+  tasks.forEach((t) => t.deps.forEach((d) => {
+    const p = byId.get(d);
+    if (p && S(t) <= F(p)) { if (!conflicts.has(t.id)) conflicts.set(t.id, []); conflicts.get(t.id).push(d); }
+  }));
+  const downstream = (id) => { const seen = new Set(), q = [...succ.get(id)]; while (q.length) { const x = q.shift(); if (!seen.has(x)) { seen.add(x); q.push(...succ.get(x)); } } return seen; };
+  return { byId, succ, float, critical, conflicts, downstream, end };
+}
+
+const VIEWS = {
+  executive:    { label: "Executive",     who: "Leadership",       desc: "Workstream roll-ups and key milestones only. The one-slide answer to \"are we on track?\"", cols: ["item", "start", "finish"] },
+  detailed:     { label: "Detailed",      who: "PMs and leads",    desc: "Every task with owner, dates, duration and float, grouped by workstream.",                    cols: ["task", "owner", "start", "finish", "dur", "float"] },
+  dependencies: { label: "Dependencies",  who: "Anyone planning a change", desc: "Select a task to light up everything downstream of it before you move it.",          cols: ["task", "start", "finish", "down"] },
+  workstreams:  { label: "Workstreams",   who: "Teams",            desc: "Colored by workstream. Collapse what you don't own.",                                            cols: ["task", "owner", "start", "finish", "dur"] },
+  critical:     { label: "Critical path", who: "Program leads",    desc: "Only the chain that sets the end date, in order.",                                               cols: ["task", "ws", "start", "finish", "dur", "float"] }
+};
+const COLS = {
+  item:   { label: "Item",       w: 230 },
+  task:   { label: "Task",       w: 220 },
+  owner:  { label: "Owner",      w: 88 },
+  ws:     { label: "Workstream", w: 100 },
+  start:  { label: "Start",      w: 66 },
+  finish: { label: "Finish",     w: 66 },
+  dur:    { label: "Dur",        w: 48 },
+  float:  { label: "Float",      w: 54 },
+  down:   { label: "Downstream", w: 92 }
+};
+
+// Turns schedule + view into rows. Both the grid and the timeline draw from these rows.
+function buildRows(view, sched, an, collapsed) {
+  const tasks = sched.tasks;
+  const rows = [];
+  const span = (ts) => ({ start: ts.reduce((m, t) => t.start < m ? t.start : m, ts[0].start), finish: ts.reduce((m, t) => t.finish > m ? t.finish : m, ts[0].finish) });
+  if (view === "executive") {
+    const ms = tasks.filter((t) => t.milestone).sort((a, b) => a.start.localeCompare(b.start));
+    if (ms.length) rows.push({ type: "milestones", label: "Key milestones", items: ms, ...span(ms) });
+    sched.workstreams.forEach((ws) => {
+      const ts = tasks.filter((t) => t.workstream === ws.id && !t.milestone);
+      if (ts.length) rows.push({ type: "summary", ws, label: ws.name, critical: ts.some((t) => an.critical.has(t.id)), conflict: ts.some((t) => an.conflicts.has(t.id)), ...span(ts) });
+    });
+    return rows;
+  }
+  if (view === "critical") {
+    tasks.filter((t) => an.critical.has(t.id)).sort((a, b) => a.start.localeCompare(b.start) || a.finish.localeCompare(b.finish))
+      .forEach((t) => rows.push({ type: "task", task: t }));
+    return rows;
+  }
+  sched.workstreams.forEach((ws) => {
+    const ts = tasks.filter((t) => t.workstream === ws.id).sort((a, b) => a.start.localeCompare(b.start) || a.finish.localeCompare(b.finish));
+    if (!ts.length) return;
+    const isClosed = collapsed.has(ws.id);
+    rows.push({ type: "group", ws, label: ws.name, count: ts.length, collapsed: isClosed, ...span(ts) });
+    if (!isClosed) ts.forEach((t) => rows.push({ type: "task", task: t }));
+  });
+  return rows;
+}
+
+/* =====================================================================
+   4. RENDERING
+   ===================================================================== */
+const ROW = 36, HEAD = 44;
+const PPD = { week: 10, month: 4 };
+const C = { accent: "#C2410C", task: "#A9BEDE", ink: "#1A1D21", ink2: "#3C4248", muted: "#5B6168", hl: "#2F5A94", dim: "#CDD0CC", bad: "#9F1239", base: "#8A9097", band: "#F5F6F3", sel: "#EEF3FA", grid: "#EFF0ED", line: "#E3E4E1" };
+const esc = (s) => String(s).replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
+const $ = (s) => document.querySelector(s);
+
+const state = {
+  scheduleId: "platform-evt",
+  page: "schedules", view: "detailed",
+  schedule: null, an: null,
+  selected: null, showDeps: true, compareId: "", zoom: "week",
+  collapsed: new Set(), baselines: [], exports: [], activity: [],
+  otherSessions: 0, lastSync: null, range: null, rows: []
+};
+const TODAY = localTodayISO();
+
+function computeRange() {
+  let lo = Infinity, hi = -Infinity;
+  const take = (ts) => ts.forEach((t) => { lo = Math.min(lo, dayNum(t.start)); hi = Math.max(hi, dayNum(t.finish)); });
+  take(state.schedule.tasks);
+  const b = compareBaseline(); if (b) take(b.tasks);
+  lo -= 3; const dow = new Date(lo * DAY).getUTCDay(); lo -= (dow + 6) % 7; // back to Monday
+  hi += Math.ceil(180 / PPD[state.zoom]); // room for end-of-bar labels
+  state.range = { start: lo, end: hi };
+}
+function compareBaseline() { return state.baselines.find((b) => b.id === state.compareId) || null; }
+
+function barFill(t) {
+  const an = state.an;
+  if (state.view === "workstreams") return (state.schedule.workstreams.find((w) => w.id === t.workstream) || {}).color || C.task;
+  return an.critical.has(t.id) ? C.accent : C.task;
+}
+
+function timelineSVG(rows, opt = {}) {
+  const ppd = PPD[state.zoom], { start: r0, end: r1 } = state.range;
+  const lx = opt.labels ? opt.labelW : 0;
+  const W = lx + (r1 - r0 + 1) * ppd, H = HEAD + rows.length * ROW;
+  const X = (d) => lx + (d - r0) * ppd;
+  const an = state.an;
+  const hl = state.view === "dependencies" && state.selected && an.byId.has(state.selected)
+    ? new Set([state.selected, ...an.downstream(state.selected)]) : null;
+  const p = [];
+  p.push(`<svg xmlns="http://www.w3.org/2000/svg" class="tl-svg" width="${W}" height="${H}" viewBox="0 0 ${W} ${H}" font-family="Segoe UI, system-ui, sans-serif" role="img" aria-label="Timeline, ${esc(VIEWS[state.view].label)} view">`);
+  const marker = (id, color) => `<marker id="${id}" viewBox="0 0 6 6" refX="5.5" refY="3" markerWidth="6" markerHeight="6" orient="auto"><path d="M0 0L6 3L0 6z" fill="${color}"/></marker>`;
+  p.push(`<defs>${marker("ah-crit", C.accent)}${marker("ah-norm", C.base)}${marker("ah-hl", C.hl)}${marker("ah-dim", C.dim)}${marker("ah-bad", C.bad)}</defs>`);
+  p.push(`<rect width="${W}" height="${H}" fill="#FFFFFF"/>`);
+
+  // row bands
+  rows.forEach((r, i) => {
+    const y = HEAD + i * ROW;
+    if (r.type === "group" || r.type === "milestones") p.push(`<rect x="${lx}" y="${y}" width="${W - lx}" height="${ROW}" fill="${C.band}"/>`);
+    if (r.type === "task" && r.task.id === state.selected) p.push(`<rect x="${lx}" y="${y}" width="${W - lx}" height="${ROW}" fill="${C.sel}"/>`);
+    p.push(`<line x1="${lx}" x2="${W}" y1="${y + ROW - 0.5}" y2="${y + ROW - 0.5}" stroke="${C.grid}"/>`);
+  });
+
+  // header + week gridlines
+  p.push(`<rect x="${lx}" y="0" width="${W - lx}" height="${HEAD}" fill="#FBFBFA"/>`);
+  for (let d = r0; d <= r1; d++) {
+    const dt = new Date(d * DAY), dow = dt.getUTCDay(), dom = dt.getUTCDate();
+    if (dom === 1 || (d === r0 && dom < 22)) p.push(`<text x="${X(d) + 6}" y="17" font-size="12" font-weight="600" fill="${C.ink2}">${dt.toLocaleDateString("en-US", { month: "short", timeZone: "UTC" })} ${dt.getUTCFullYear()}</text>`);
+    if (dow === 1) {
+      p.push(`<line x1="${X(d) + 0.5}" x2="${X(d) + 0.5}" y1="${HEAD - 14}" y2="${H}" stroke="${C.grid}"/>`);
+      p.push(`<text x="${X(d) + 4}" y="${HEAD - 9}" font-size="11" fill="${C.muted}" font-family="Cascadia Mono, Consolas, monospace">${dom}</text>`);
+    }
+  }
+  p.push(`<line x1="${lx}" x2="${W}" y1="${HEAD - 0.5}" y2="${HEAD - 0.5}" stroke="${C.line}"/>`);
+
+  // today
+  const td = dayNum(TODAY);
+  if (td >= r0 && td <= r1) {
+    const x = X(td) + ppd / 2;
+    p.push(`<line x1="${x}" x2="${x}" y1="${HEAD}" y2="${H}" stroke="${C.ink}" stroke-width="1.5" stroke-dasharray="4 3"><title>Today, ${fmt(TODAY)}</title></line>`);
+  }
+
+  // baseline ghosts (drawn under bars)
+  const base = compareBaseline();
+  if (base) {
+    const bmap = new Map(base.tasks.map((t) => [t.id, t]));
+    rows.forEach((r, i) => {
+      if (r.type !== "task") return;
+      const b = bmap.get(r.task.id); if (!b) return;
+      const y = HEAD + i * ROW;
+      if (b.milestone) { const cx = X(dayNum(b.start)) + ppd / 2; p.push(`<polygon points="${cx},${y + 25} ${cx + 4},${y + 29} ${cx},${y + 33} ${cx - 4},${y + 29}" fill="none" stroke="${C.base}" stroke-width="1.5"/>`); }
+      else p.push(`<rect x="${X(dayNum(b.start))}" y="${y + 29}" width="${(dayNum(b.finish) - dayNum(b.start) + 1) * ppd}" height="4" rx="1" fill="${C.base}"/>`);
+    });
+  }
+
+  // dependency arrows
+  const showArrows = state.view === "dependencies" || (state.showDeps && state.view !== "executive");
+  if (showArrows) {
+    const idx = new Map(); rows.forEach((r, i) => r.type === "task" && idx.set(r.task.id, i));
+    rows.forEach((r) => {
+      if (r.type !== "task") return;
+      const t = r.task;
+      t.deps.forEach((d) => {
+        if (!idx.has(d)) return;
+        const pr = an.byId.get(d);
+        const sx = pr.milestone ? X(dayNum(pr.start)) + ppd / 2 + 8 : X(dayNum(pr.finish)) + ppd;
+        const ex = t.milestone ? X(dayNum(t.start)) + ppd / 2 - 9 : X(dayNum(t.start));
+        const sy = HEAD + idx.get(d) * ROW + 18, ey = HEAD + idx.get(t.id) * ROW + 18;
+        const bad = dayNum(t.start) <= dayNum(pr.finish);
+        const tight = dayNum(t.start) - dayNum(pr.finish) === 1;
+        let color = C.base, mk = "ah-norm", width = 1.25;
+        if (an.critical.has(d) && an.critical.has(t.id) && tight) { color = C.accent; mk = "ah-crit"; width = 1.5; }
+        if (hl) { if (hl.has(d) && hl.has(t.id)) { color = C.hl; mk = "ah-hl"; width = 2; } else { color = C.dim; mk = "ah-dim"; } }
+        if (bad) { color = C.bad; mk = "ah-bad"; width = 1.5; }
+        let path;
+        if (ex - sx >= 12) path = `M${sx} ${sy} H${sx + 6} V${ey} H${ex}`;
+        else { const gy = ey > sy ? ey - 18 : ey + 18; path = `M${sx} ${sy} H${sx + 6} V${gy} H${ex - 8} V${ey} H${ex}`; }
+        p.push(`<path d="${path}" fill="none" stroke="${color}" stroke-width="${width}" ${bad ? 'stroke-dasharray="4 2"' : ""} marker-end="url(#${mk})"/>`);
+      });
+    });
+  }
+
+  // bars
+  rows.forEach((r, i) => {
+    const y = HEAD + i * ROW;
+    if (r.type === "task") {
+      const t = r.task, s = dayNum(t.start), f = dayNum(t.finish);
+      const sel = t.id === state.selected, bad = an.conflicts.has(t.id);
+      const dim = hl && !hl.has(t.id);
+      const fill = hl && hl.has(t.id) && t.id !== state.selected ? C.hl : barFill(t);
+      const tip = `${t.name} · ${fmt(t.start)}${t.milestone ? "" : " – " + fmt(t.finish)}`;
+      p.push(`<g class="bar" data-id="${esc(t.id)}" opacity="${dim ? 0.35 : 1}"><title>${esc(tip)}</title>`);
+      if (t.milestone) {
+        const cx = X(s) + ppd / 2, cy = y + 18;
+        p.push(`<polygon points="${cx},${cy - 8} ${cx + 8},${cy} ${cx},${cy + 8} ${cx - 8},${cy}" fill="${an.critical.has(t.id) && state.view !== "workstreams" ? C.ink : barFill(t)}" stroke="${sel ? C.ink : bad ? C.bad : "none"}" stroke-width="${sel ? 3 : 2}"/>`);
+      } else {
+        p.push(`<rect x="${X(s)}" y="${y + 9}" width="${Math.max((f - s + 1) * ppd, 4)}" height="18" rx="3" fill="${fill}" stroke="${sel ? C.ink : bad ? C.bad : "none"}" stroke-width="2" ${bad && !sel ? 'stroke-dasharray="4 2"' : ""}/>`);
+      }
+      p.push(`</g>`);
+    } else if (r.type === "group") {
+      const s = dayNum(r.start), f = dayNum(r.finish);
+      p.push(`<rect x="${X(s)}" y="${y + 15}" width="${(f - s + 1) * ppd}" height="6" rx="1.5" fill="${C.ink2}"/>`);
+    } else if (r.type === "summary") {
+      const s = dayNum(r.start), f = dayNum(r.finish), w = (f - s + 1) * ppd;
+      p.push(`<rect x="${X(s)}" y="${y + 11}" width="${w}" height="14" rx="3" fill="${r.critical ? C.accent : C.task}" ${r.conflict ? `stroke="${C.bad}" stroke-width="2" stroke-dasharray="4 2"` : ""}/>`);
+      p.push(`<text x="${X(f) + ppd + 8}" y="${y + 22}" font-size="12" fill="${C.muted}">${fmt(r.finish)}</text>`);
+    } else if (r.type === "milestones") {
+      r.items.forEach((m) => {
+        const cx = X(dayNum(m.start)) + ppd / 2, cy = y + 18;
+        p.push(`<polygon points="${cx},${cy - 7} ${cx + 7},${cy} ${cx},${cy + 7} ${cx - 7},${cy}" fill="${C.ink}"/>`);
+        p.push(`<text x="${cx + 12}" y="${cy + 4}" font-size="12" fill="${C.ink}">${esc(m.name)} · ${fmt(m.start)}</text>`);
+      });
+    }
+  });
+
+  // label column (exports only)
+  if (opt.labels) {
+    p.push(`<rect x="0" y="0" width="${lx}" height="${H}" fill="#FFFFFF"/><rect x="0" y="0" width="${lx}" height="${HEAD}" fill="#FBFBFA"/>`);
+    p.push(`<text x="12" y="${HEAD - 14}" font-size="12" fill="${C.muted}">${esc(state.schedule.name)} · ${esc(VIEWS[state.view].label)}</text>`);
+    rows.forEach((r, i) => {
+      const y = HEAD + i * ROW;
+      if (r.type === "group" || r.type === "milestones") p.push(`<rect x="0" y="${y}" width="${lx}" height="${ROW}" fill="${C.band}"/>`);
+      const txt = r.type === "task" ? r.task.name : r.label;
+      const bold = r.type !== "task";
+      const short = txt.length > 32 ? txt.slice(0, 31) + "…" : txt;
+      p.push(`<text x="${r.type === "task" ? 24 : 12}" y="${y + 22}" font-size="12.5" ${bold ? 'font-weight="600"' : ""} fill="${C.ink}">${esc(short)}</text>`);
+      p.push(`<line x1="0" x2="${lx}" y1="${y + ROW - 0.5}" y2="${y + ROW - 0.5}" stroke="${C.grid}"/>`);
+    });
+    p.push(`<line x1="${lx - 0.5}" x2="${lx - 0.5}" y1="0" y2="${H}" stroke="${C.line}"/>`);
+  }
+  p.push(`</svg>`);
+  return p.join("");
+}
+
+function cellHTML(key, r) {
+  const an = state.an;
+  const t = r.task;
+  switch (key) {
+    case "item":
+    case "task": {
+      if (r.type === "group") return `<span class="name"><svg class="chev ${r.collapsed ? "closed" : ""}" width="12" height="12" viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="1.6" aria-hidden="true"><path d="M3 4.5l3 3 3-3"/></svg>${esc(r.label)} <span class="muted" style="font-weight:400;text-transform:none;letter-spacing:0">${r.count}</span></span>`;
+      if (r.type === "summary" || r.type === "milestones") return `<span class="name"><b>${esc(r.label)}</b>${r.conflict ? '<span class="pill bad">Conflict</span>' : ""}</span>`;
+      return `<span class="name"><span style="overflow:hidden;text-overflow:ellipsis">${esc(t.name)}</span>${an.conflicts.has(t.id) ? '<span class="pill bad">Conflict</span>' : ""}</span>`;
+    }
+    case "owner": return `<span class="muted">${t ? esc(t.owner) : ""}</span>`;
+    case "ws": return `<span class="muted">${t ? esc((state.schedule.workstreams.find((w) => w.id === t.workstream) || {}).name || "") : ""}</span>`;
+    case "start": return `<span class="mono ${r.type === "task" ? "" : "muted"}">${r.type === "task" ? fmt(t.start) : r.start ? fmt(r.start) : ""}</span>`;
+    case "finish": return `<span class="mono ${r.type === "task" ? "" : "muted"}">${r.type === "task" ? fmt(t.finish) : r.finish ? fmt(r.finish) : ""}</span>`;
+    case "dur": return `<span class="mono muted">${t ? durDays(t) + "d" : ""}</span>`;
+    case "float": {
+      if (!t) return "<span></span>";
+      const f = an.float.get(t.id);
+      return `<span class="mono ${f < 0 ? "neg" : f === 0 ? "crit-text" : "muted"}">${f}d</span>`;
+    }
+    case "down": return `<span class="mono muted">${t ? an.downstream(t.id).size : ""}</span>`;
+  }
+  return "<span></span>";
+}
+
+function gridHTML(rows) {
+  const cols = VIEWS[state.view].cols;
+  const tmpl = cols.map((k) => COLS[k].w + "px").join(" ");
+  const width = cols.reduce((s, k) => s + COLS[k].w, 0);
+  const out = [`<div style="width:${width}px">`];
+  out.push(`<div class="ghead" style="grid-template-columns:${tmpl}">${cols.map((k) => `<span>${COLS[k].label}</span>`).join("")}</div>`);
+  rows.forEach((r) => {
+    const cells = cols.map((k) => cellHTML(k, r)).join("");
+    const style = `grid-template-columns:${tmpl}`;
+    if (r.type === "task") out.push(`<button class="grow ${r.task.id === state.selected ? "selected" : ""}" style="${style}" data-action="select" data-id="${esc(r.task.id)}" aria-pressed="${r.task.id === state.selected}">${cells}</button>`);
+    else if (r.type === "group") out.push(`<button class="grow group" style="${style}" data-action="toggle-group" data-ws="${esc(r.ws.id)}" aria-expanded="${!r.collapsed}">${cells}</button>`);
+    else if (r.type === "summary") out.push(`<button class="grow summary" style="${style}" data-action="open-ws" data-ws="${esc(r.ws.id)}" title="Open ${esc(r.label)} in Workstreams">${cells}</button>`);
+    else out.push(`<div class="grow group" style="${style};text-transform:none;letter-spacing:0">${cells}</div>`);
+  });
+  if (!rows.length) out.push(`<div class="empty">Nothing to show in this view.</div>`);
+  out.push(`</div>`);
+  return out.join("");
+}
+
+function legendHTML() {
+  const items = [];
+  if (state.view === "workstreams") state.schedule.workstreams.forEach((w) => items.push(`<span><i class="sw" style="background:${w.color}"></i>${esc(w.name)}</span>`));
+  else { items.push(`<span><i class="sw" style="background:${C.accent}"></i>Critical path</span>`, `<span><i class="sw" style="background:${C.task}"></i>Task</span>`); }
+  if (state.view === "dependencies") items.push(`<span><i class="sw" style="background:${C.hl}"></i>Downstream of selected</span>`);
+  items.push(`<span><i class="sw" style="width:9px;height:9px;transform:rotate(45deg);background:${C.ink}"></i>Milestone</span>`);
+  items.push(`<span><i class="sw" style="background:transparent;border:2px dashed ${C.bad};height:10px"></i>Conflict (starts before a predecessor ends)</span>`);
+  if (compareBaseline()) items.push(`<span><i class="sw" style="height:4px;background:${C.base}"></i>Baseline: ${esc(compareBaseline().name)}</span>`);
+  items.push(`<span><i class="sw" style="width:0;height:12px;border-left:2px dashed ${C.ink};border-radius:0"></i>Today</span>`);
+  if (state.view === "dependencies" && !state.selected) items.push(`<span><b>Tip:</b>&nbsp;select a task to see what it drives.</span>`);
+  if (state.view !== "executive") items.push(`<span><b>Tip:</b>&nbsp;drag a bar to move it.</span>`);
+  return items.join("");
+}
+
+function timeAgo(iso) {
+  const s = Math.round((Date.now() - new Date(iso).getTime()) / 1000);
+  if (s < 45) return "just now";
+  if (s < 3600) return Math.round(s / 60) + " min ago";
+  if (s < 86400) return Math.round(s / 3600) + " h ago";
+  return new Date(iso).toLocaleDateString("en-US", { month: "short", day: "numeric" });
+}
+const KIND = { api: ["API", ""], ui: ["UI", "ui"], sync: ["SYNC", "sync"] };
+const tagHTML = (k) => `<span class="tag ${KIND[k] ? KIND[k][1] : ""}">${KIND[k] ? KIND[k][0] : esc(k)}</span>`;
+
+function drawerHTML() {
+  const t = state.schedule.tasks.find((x) => x.id === state.selected);
+  if (!t) return "";
+  const an = state.an;
+  const ws = state.schedule.workstreams.find((w) => w.id === t.workstream);
+  const f = an.float.get(t.id);
+  const preds = t.deps.map((d) => an.byId.get(d)).filter(Boolean);
+  const succs = an.succ.get(t.id).map((d) => an.byId.get(d));
+  const down = an.downstream(t.id);
+  const base = compareBaseline();
+  const bt = base && base.tasks.find((x) => x.id === t.id);
+  const variance = bt ? dayNum(t.finish) - dayNum(bt.finish) : null;
+  const conflict = an.conflicts.get(t.id);
+  const chip = (x) => `<button class="chip" data-action="select" data-id="${esc(x.id)}">${esc(x.name)}</button>`;
+  return `
+  <header>
+    <div style="flex:1;min-width:0">
+      <div class="muted" style="font-size:12px;margin-bottom:2px">${esc(ws ? ws.name : "")} · ${esc(t.id)}</div>
+      <h2>${esc(t.name)}</h2>
+    </div>
+    <button class="icon-btn" data-action="close-drawer" aria-label="Close details"><svg width="14" height="14" viewBox="0 0 14 14" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"><path d="M3 3l8 8M11 3l-8 8"/></svg></button>
+  </header>
+  <form class="body" id="taskForm">
+    ${conflict ? `<div class="pill bad" style="padding:8px 10px;font-weight:500;font-size:12px">Starts before ${conflict.map((d) => esc(an.byId.get(d).name)).join(" and ")} finishes. Move this task or its predecessor.</div>` : ""}
+    <label class="field">Owner<input name="owner" value="${esc(t.owner)}" maxlength="60"></label>
+    <div class="field-row">
+      <label class="field">Start<input type="date" name="start" value="${t.start}" required></label>
+      <label class="field">Finish<input type="date" name="finish" value="${t.finish}" ${t.milestone ? "disabled" : ""} required></label>
+    </div>
+    <div style="display:flex;gap:8px"><button class="btn primary" type="submit">Save to source</button><button class="btn" type="button" data-action="close-drawer">Cancel</button></div>
+    <dl class="facts">
+      <dt>Duration</dt><dd class="mono">${t.milestone ? "Milestone" : durDays(t) + " days"}</dd>
+      <dt>Float</dt><dd class="mono ${f < 0 ? "neg" : f === 0 ? "crit-text" : ""}">${f} days${f <= 0 ? " · on critical path" : ""}</dd>
+      <dt>Downstream</dt><dd>${down.size} task${down.size === 1 ? "" : "s"} depend on this</dd>
+      ${bt ? `<dt>vs baseline</dt><dd class="mono ${variance > 0 ? "neg" : ""}">${variance === 0 ? "On baseline" : (variance > 0 ? "+" : "") + variance + " days at finish"}</dd>` : ""}
+    </dl>
+    <div class="field">Waits on<div class="linklist">${preds.length ? preds.map(chip).join("") : '<span class="muted">Nothing</span>'}</div></div>
+    <div class="field">Drives<div class="linklist">${succs.length ? succs.map(chip).join("") : '<span class="muted">Nothing</span>'}</div></div>
+  </form>`;
+}
+
+function render() {
+  document.querySelectorAll(".nav-btn").forEach((b) => b.setAttribute("aria-current", b.dataset.page === state.page ? "page" : "false"));
+  document.querySelectorAll(".page").forEach((s) => s.classList.toggle("active", s.id === "page-" + state.page));
+  $("#schedName").textContent = state.schedule.name;
+  $("#srcFile").textContent = state.schedule.source.file;
+  $("#srcSynced").textContent = state.lastSync ? "Synced " + timeAgo(state.lastSync) : "Not synced yet";
+  $("#banner").classList.toggle("show", state.otherSessions > 0);
+  renderCompareSelect();
+  if (state.page === "schedules") renderSchedule();
+  if (state.page === "views") renderViews();
+  if (state.page === "baselines") renderBaselines();
+  if (state.page === "exports") renderExports();
+  if (state.page === "api") renderApi();
+}
+
+function renderSchedule() {
+  document.querySelectorAll(".tab").forEach((b) => b.setAttribute("aria-selected", b.dataset.view === state.view));
+  document.querySelectorAll("[data-zoom]").forEach((b) => b.setAttribute("aria-pressed", b.dataset.zoom === state.zoom));
+  $("#depsToggle").checked = state.showDeps;
+  $("#depsToggle").disabled = state.view === "executive" || state.view === "dependencies";
+  computeRange();
+  state.rows = buildRows(state.view, state.schedule, state.an, state.collapsed);
+  const chart = $("#chart"), sl = chart.scrollLeft, st = chart.scrollTop;
+  $("#gridPane").innerHTML = gridHTML(state.rows);
+  $("#tlPane").innerHTML = timelineSVG(state.rows);
+  chart.scrollLeft = sl; chart.scrollTop = st;
+  $("#legend").innerHTML = legendHTML();
+  const a = state.activity[0];
+  $("#activityStrip").innerHTML = a
+    ? `${tagHTML(a.kind)}<span><b>${esc(a.who)}</b> · ${esc(a.text)}</span><span class="spacer"></span><span class="muted">${timeAgo(a.at)}</span><button class="btn small" data-action="page" data-page="api">All activity</button>`
+    : `<span class="muted">No changes yet. Edits from you, agents and Excel will show up here.</span>`;
+  const dr = $("#drawer");
+  const open = !!state.selected && state.schedule.tasks.some((t) => t.id === state.selected);
+  const html = open ? drawerHTML() : "";
+  if (dr.dataset.for !== (state.selected || "") || dr.dataset.ver !== String(state.ver)) { dr.innerHTML = html; dr.dataset.for = state.selected || ""; dr.dataset.ver = String(state.ver); }
+  dr.classList.toggle("open", open);
+}
+
+function renderCompareSelect() {
+  const sel = $("#compareSel");
+  sel.innerHTML = `<option value="">No baseline</option>` + state.baselines.map((b) => `<option value="${esc(b.id)}">${esc(b.name)}</option>`).join("");
+  sel.value = state.compareId;
+}
+
+function renderViews() {
+  $("#viewCards").innerHTML = Object.entries(VIEWS).map(([k, v]) => `
+    <div class="card"><h3>${esc(v.label)}</h3><div class="who">For ${esc(v.who)}</div><p>${esc(v.desc)}</p>
+    <div><button class="btn small" data-action="view" data-view="${k}">Open view</button></div></div>`).join("");
+}
+function renderBaselines() {
+  $("#baselineRows").innerHTML = state.baselines.length ? state.baselines.map((b) => {
+    const end = b.tasks.reduce((m, t) => t.finish > m ? t.finish : m, b.tasks[0].finish);
+    return `<tr><td><b>${esc(b.name)}</b></td><td>${timeAgo(b.savedAt)}</td><td>${b.tasks.length}</td><td class="mono">${fmt(end)}</td>
+      <td><button class="btn small" data-action="compare" data-id="${esc(b.id)}">${state.compareId === b.id ? "Comparing" : "Compare"}</button></td></tr>`;
+  }).join("") : `<tr><td colspan="5" class="empty">No baselines yet.</td></tr>`;
+}
+function renderExports() {
+  $("#exportRows").innerHTML = state.exports.length ? state.exports.map((e) =>
+    `<tr><td>${timeAgo(e.at)}</td><td class="mono">${esc(e.format.toUpperCase())}</td><td>${esc(VIEWS[e.view] ? VIEWS[e.view].label : e.view)}</td><td>${esc(e.who)}</td></tr>`).join("")
+    : `<tr><td colspan="4" class="empty">Nothing exported yet.</td></tr>`;
+}
+const API_DOC = [
+  ["getSchedule", "GET /api/schedules/{id}", "Schedule, workstreams and tasks"],
+  ["updateTask", "PATCH /api/schedules/{id}/tasks/{taskId}", "Edit a task. Validates, writes back to Excel through Graph"],
+  ["saveBaseline", "POST /api/schedules/{id}/baselines", "Lock a snapshot"],
+  ["listBaselines", "GET /api/schedules/{id}/baselines", "All snapshots"],
+  ["recordExport", "POST /api/schedules/{id}/exports", "Render a view to PNG, SVG, CSV or JSON"],
+  ["listActivity", "GET /api/schedules/{id}/activity", "Change log: who, how, what"],
+  ["syncNow", "POST /api/schedules/{id}/sync", "Pull the latest from the source file"],
+  ["subscribe", "GET /api/schedules/{id}/events", "Live change stream (fed by Graph webhooks)"],
+  ["otherSessions", "GET /api/schedules/{id}/sessions", "Is this open in another window?"]
+];
+function renderApi() {
+  $("#apiRows").innerHTML = API_DOC.map(([fn, ep, d]) => { const [m, ...rest] = ep.split(" ");
+    return `<tr><td class="mono">api.${fn}()</td><td><span class="method">${m}</span> <span class="mono">${esc(rest.join(" "))}</span></td><td>${esc(d)}</td></tr>`; }).join("");
+  $("#activityRows").innerHTML = state.activity.length ? state.activity.map((a) =>
+    `<tr><td style="white-space:nowrap">${timeAgo(a.at)}</td><td>${tagHTML(a.kind)}</td><td>${esc(a.who)}</td><td>${esc(a.text)}</td></tr>`).join("")
+    : `<tr><td colspan="4" class="empty">No activity yet.</td></tr>`;
+}
+
+/* =====================================================================
+   5. ACTIONS & WIRING
+   ===================================================================== */
+state.ver = 0;
+async function refresh() {
+  state.schedule = await api.getSchedule(state.scheduleId);
+  state.an = analyze(state.schedule.tasks);
+  [state.baselines, state.exports, state.activity, state.otherSessions] = await Promise.all([
+    api.listBaselines(state.scheduleId), api.listExports(state.scheduleId), api.listActivity(state.scheduleId), api.otherSessions(state.scheduleId)
+  ]);
+  state.ver++;
+  render();
+}
+
+function toast(msg, err) {
+  const el = document.createElement("div");
+  el.className = "toast" + (err ? " err" : ""); el.textContent = msg;
+  $("#toasts").appendChild(el);
+  while ($("#toasts").children.length > 3) $("#toasts").firstElementChild.remove();
+  setTimeout(() => el.remove(), 3200);
+}
+
+async function editTask(id, patch, actor = { kind: "ui", name: "You" }) {
+  if (state.otherSessions > 0) { toast("Close the other window before editing.", true); return false; }
+  try {
+    await api.updateTask(state.scheduleId, id, patch, actor);
+    await refresh();
+    const c = state.an.conflicts.get(id);
+    const hit = state.an.succ.get(id).filter((s) => (state.an.conflicts.get(s) || []).includes(id)).length;
+    toast(c ? "Saved. Heads up: this now starts before a predecessor finishes."
+      : hit ? `Saved. Heads up: ${hit} task${hit === 1 ? " now starts" : "s now start"} before this one finishes.`
+      : "Saved and written back to the source.");
+    return true;
+  } catch (e) { toast(e.message || "Couldn't save.", true); return false; }
+}
+
+function setPage(p) { state.page = p; writeHash(); render(); }
+function setView(v) { state.view = v; state.page = "schedules"; writeHash(); render(); }
+function writeHash() { try { history.replaceState(null, "", `#page=${state.page}&view=${state.view}`); } catch (e) {} }
+function readHash() {
+  try {
+    const h = new URLSearchParams(location.hash.slice(1));
+    if (h.get("page") && document.getElementById("page-" + h.get("page"))) state.page = h.get("page");
+    if (h.get("view") && VIEWS[h.get("view")]) state.view = h.get("view");
+  } catch (e) {}
+}
+
+function scrollToToday() {
+  if (state.page !== "schedules") return;
+  const ppd = PPD[state.zoom], td = dayNum(TODAY);
+  if (td < state.range.start || td > state.range.end) { toast("Today is outside this schedule's dates."); return; }
+  const chart = $("#chart");
+  chart.scrollLeft = Math.max(0, $("#gridPane").offsetWidth + (td - state.range.start) * ppd - chart.clientWidth / 2);
+}
+
+function slug(s) { return s.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, ""); }
+function download(name, blob) {
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a"); a.href = url; a.download = name; document.body.appendChild(a); a.click(); a.remove();
+  setTimeout(() => URL.revokeObjectURL(url), 1500);
+}
+async function exportAs(format) {
+  if (!state.range) computeRange();
+  const rows = buildRows(state.view, state.schedule, state.an, state.collapsed);
+  const base = `${slug(state.schedule.name)}-${state.view}-${TODAY}`;
+  const an = state.an;
+  try {
+    if (format === "svg" || format === "png") {
+      const svg = timelineSVG(rows, { labels: true, labelW: 250 });
+      if (format === "svg") download(base + ".svg", new Blob([svg], { type: "image/svg+xml" }));
+      else {
+        const img = new Image();
+        const url = URL.createObjectURL(new Blob([svg], { type: "image/svg+xml" }));
+        await new Promise((res, rej) => { img.onload = res; img.onerror = rej; img.src = url; });
+        const k = 2, cv = document.createElement("canvas");
+        cv.width = img.width * k; cv.height = img.height * k;
+        const ctx = cv.getContext("2d"); ctx.scale(k, k); ctx.drawImage(img, 0, 0);
+        URL.revokeObjectURL(url);
+        const blob = await new Promise((res) => cv.toBlob(res, "image/png"));
+        download(base + ".png", blob);
+      }
+    } else if (format === "csv") {
+      const q = (v) => `"${String(v).replace(/"/g, '""')}"`;
+      const lines = [["id", "name", "workstream", "owner", "start", "finish", "duration_days", "float_days", "critical", "milestone", "depends_on"].join(",")];
+      state.schedule.tasks.forEach((t) => lines.push([t.id, t.name, t.workstream, t.owner, t.start, t.finish, durDays(t), an.float.get(t.id), an.critical.has(t.id), t.milestone, t.deps.join(" ")].map(q).join(",")));
+      download(base + ".csv", new Blob([lines.join("\n")], { type: "text/csv" }));
+    } else if (format === "json") {
+      const out = { ...state.schedule, view: state.view, exportedAt: new Date().toISOString(),
+        tasks: state.schedule.tasks.map((t) => ({ ...t, durationDays: durDays(t), floatDays: an.float.get(t.id), critical: an.critical.has(t.id), conflictWith: an.conflicts.get(t.id) || [] })) };
+      download(base + ".json", new Blob([JSON.stringify(out, null, 2)], { type: "application/json" }));
+    }
+    await api.recordExport(state.scheduleId, format, state.view);
+    state.exports = await api.listExports(state.scheduleId);
+    if (state.page === "exports") renderExports();
+    toast(`Exported ${VIEWS[state.view].label} as ${format.toUpperCase()}.`);
+  } catch (e) { toast("Export failed: " + (e.message || e), true); }
+}
+
+function openBaselineDialog() {
+  const n = state.baselines.length + 1;
+  $("#baselineName").value = `Baseline ${n} · ${fmt(TODAY)}`;
+  $("#baselineDlg").showModal();
+  $("#baselineName").select();
+}
+$("#baselineForm").addEventListener("submit", async (e) => {
+  if (e.submitter && e.submitter.value === "cancel") return;
+  const name = $("#baselineName").value.trim();
+  if (!name) return;
+  const b = await api.saveBaseline(state.scheduleId, name);
+  await refresh();
+  toast(`Saved baseline "${b.name}".`);
+});
+
+function closeMenus() { $("#exportMenu").classList.remove("open"); $("#exportBtn").setAttribute("aria-expanded", "false"); }
+
+document.addEventListener("click", async (e) => {
+  const el = e.target.closest("[data-action]");
+  if (!e.target.closest(".menu-wrap")) closeMenus();
+  if (!el) return;
+  const a = el.dataset.action;
+  switch (a) {
+    case "page": setPage(el.dataset.page); break;
+    case "view": setView(el.dataset.view); break;
+    case "select": state.selected = el.dataset.id; if (state.page !== "schedules") setPage("schedules"); else render(); break;
+    case "close-drawer": state.selected = null; render(); break;
+    case "toggle-group": { const id = el.dataset.ws; state.collapsed.has(id) ? state.collapsed.delete(id) : state.collapsed.add(id); render(); break; }
+    case "open-ws": state.collapsed = new Set(state.schedule.workstreams.map((w) => w.id).filter((id) => id !== el.dataset.ws)); setView("workstreams"); break;
+    case "zoom": state.zoom = el.dataset.zoom; render(); break;
+    case "today": scrollToToday(); break;
+    case "export-menu": { const m = $("#exportMenu"); const open = !m.classList.contains("open"); m.classList.toggle("open", open); el.setAttribute("aria-expanded", open); break; }
+    case "export": closeMenus(); exportAs(el.dataset.format); break;
+    case "baseline-dialog": openBaselineDialog(); break;
+    case "compare": state.compareId = state.compareId === el.dataset.id ? "" : el.dataset.id; if (state.compareId) setPage("schedules"); else render(); break;
+    case "palette": openPalette(); break;
+    case "sync": { const r = await api.syncNow(state.scheduleId); state.lastSync = r.at; await refresh(); toast("Synced with the source file."); break; }
+    case "sim-agent": await mock.agentEdit(); toast("schedule-agent moved Board fab via the API."); break;
+    case "sim-excel": await mock.excelEdit(); toast("An Excel edit came in through Graph."); break;
+    case "sim-elsewhere": mock.openElsewhere(true); break;
+    case "dismiss-banner": mock.openElsewhere(false); break;
+  }
+});
+
+document.addEventListener("submit", (e) => {
+  if (e.target.id !== "taskForm") return;
+  e.preventDefault();
+  const fd = new FormData(e.target);
+  const t = state.schedule.tasks.find((x) => x.id === state.selected);
+  const patch = { owner: (fd.get("owner") || "").trim() || t.owner, start: fd.get("start") };
+  if (!t.milestone) patch.finish = fd.get("finish");
+  editTask(t.id, patch);
+});
+
+$("#depsToggle").addEventListener("change", (e) => { state.showDeps = e.target.checked; render(); });
+$("#compareSel").addEventListener("change", (e) => { state.compareId = e.target.value; render(); });
+
+// Drag a bar to move it (snaps to whole days). A short press = select.
+let drag = null;
+$("#tlPane").addEventListener("pointerdown", (e) => {
+  const g = e.target.closest("g.bar"); if (!g || e.button !== 0) return;
+  drag = { id: g.dataset.id, x0: e.clientX, g, moved: false, delta: 0 };
+  try { g.setPointerCapture(e.pointerId); } catch (err) {}
+  e.preventDefault();
+});
+$("#tlPane").addEventListener("pointermove", (e) => {
+  if (!drag) return;
+  const dx = e.clientX - drag.x0;
+  if (Math.abs(dx) > 3) drag.moved = true;
+  if (!drag.moved) return;
+  const ppd = PPD[state.zoom];
+  drag.delta = Math.round(dx / ppd);
+  drag.g.setAttribute("transform", `translate(${drag.delta * ppd},0)`);
+});
+const endDrag = async () => {
+  if (!drag) return;
+  const d = drag; drag = null;
+  if (!d.moved) { state.selected = d.id; render(); return; }
+  if (d.delta === 0) { d.g.removeAttribute("transform"); return; }
+  const t = state.schedule.tasks.find((x) => x.id === d.id);
+  const ok = await editTask(d.id, { start: addDays(t.start, d.delta), finish: addDays(t.finish, d.delta) });
+  if (!ok) d.g.removeAttribute("transform");
+};
+$("#tlPane").addEventListener("pointerup", endDrag);
+$("#tlPane").addEventListener("pointercancel", () => { if (drag) { drag.g.removeAttribute("transform"); drag = null; } });
+
+// Command menu
+let palItems = [], palIdx = 0;
+function commands() {
+  const list = [];
+  Object.entries(VIEWS).forEach(([k, v]) => list.push({ label: `Show ${v.label} view`, hint: "View", run: () => setView(k) }));
+  ["png", "svg", "csv", "json"].forEach((f) => list.push({ label: `Export current view as ${f.toUpperCase()}`, hint: "Export", run: () => exportAs(f) }));
+  list.push({ label: "Save baseline", hint: "Baseline", run: openBaselineDialog });
+  state.baselines.forEach((b) => list.push({ label: `Compare to "${b.name}"`, hint: "Baseline", run: () => { state.compareId = b.id; setPage("schedules"); } }));
+  if (state.compareId) list.push({ label: "Stop comparing to baseline", hint: "Baseline", run: () => { state.compareId = ""; render(); } });
+  list.push({ label: state.showDeps ? "Hide dependency arrows" : "Show dependency arrows", hint: "Display", run: () => { state.showDeps = !state.showDeps; render(); } });
+  list.push({ label: state.zoom === "week" ? "Zoom out to months" : "Zoom in to weeks", hint: "Display", run: () => { state.zoom = state.zoom === "week" ? "month" : "week"; render(); } });
+  list.push({ label: "Jump to today", hint: "Display", run: () => { if (state.page !== "schedules") setPage("schedules"); scrollToToday(); } });
+  list.push({ label: "Sync with source now", hint: "Source", run: async () => { const r = await api.syncNow(state.scheduleId); state.lastSync = r.at; await refresh(); toast("Synced with the source file."); } });
+  ["schedules", "views", "baselines", "exports", "api"].forEach((p) => list.push({ label: `Go to ${p === "api" ? "API & agents" : p[0].toUpperCase() + p.slice(1)}`, hint: "Page", run: () => setPage(p) }));
+  state.schedule.tasks.forEach((t) => list.push({ label: t.name, hint: `Task · ${fmt(t.start)}`, run: () => { state.selected = t.id; if (state.view === "executive") state.view = "detailed"; state.collapsed.delete(t.workstream); setPage("schedules"); } }));
+  return list;
+}
+function renderPalette() {
+  const q = $("#palInput").value.trim().toLowerCase();
+  palItems = commands().filter((c) => !q || c.label.toLowerCase().includes(q) || c.hint.toLowerCase().includes(q));
+  palIdx = Math.min(palIdx, Math.max(0, palItems.length - 1));
+  $("#palList").innerHTML = palItems.length ? palItems.map((c, i) =>
+    `<li role="option" data-i="${i}" aria-selected="${i === palIdx}"><span>${esc(c.label)}</span><span class="muted">${esc(c.hint)}</span></li>`).join("")
+    : `<li aria-disabled="true"><span class="muted">No matches</span></li>`;
+  const cur = $("#palList").querySelector('[aria-selected="true"]'); if (cur) cur.scrollIntoView({ block: "nearest" });
+}
+function openPalette() { $("#palInput").value = ""; palIdx = 0; renderPalette(); $("#palette").showModal(); $("#palInput").focus(); }
+function runPalette(i) { const c = palItems[i]; if (!c) return; $("#palette").close(); c.run(); }
+$("#palInput").addEventListener("input", () => { palIdx = 0; renderPalette(); });
+$("#palInput").addEventListener("keydown", (e) => {
+  if (e.key === "ArrowDown") { palIdx = Math.min(palIdx + 1, palItems.length - 1); renderPalette(); e.preventDefault(); }
+  else if (e.key === "ArrowUp") { palIdx = Math.max(palIdx - 1, 0); renderPalette(); e.preventDefault(); }
+  else if (e.key === "Enter") { runPalette(palIdx); e.preventDefault(); }
+});
+$("#palList").addEventListener("click", (e) => { const li = e.target.closest("li[data-i]"); if (li) runPalette(+li.dataset.i); });
+$("#palette").addEventListener("click", (e) => { if (e.target.id === "palette") $("#palette").close(); });
+
+document.addEventListener("keydown", (e) => {
+  if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === "k") { e.preventDefault(); $("#palette").open ? $("#palette").close() : openPalette(); }
+  else if (e.key === "Escape" && !document.querySelector("dialog[open]")) { if ($("#exportMenu").classList.contains("open")) closeMenus(); else if (state.selected) { state.selected = null; render(); } }
+});
+
+// Live updates: anything the backend pushes triggers a refetch.
+api.subscribe(state.scheduleId, () => refresh());
+setInterval(() => { if (state.schedule) { $("#srcSynced").textContent = state.lastSync ? "Synced " + timeAgo(state.lastSync) : "Not synced yet"; } }, 30000);
+
+readHash();
+refresh().then(() => { if (state.page === "schedules") scrollToToday(); });
+</script>
+</body>
+</html>

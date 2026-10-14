@@ -55,3 +55,6 @@ temp/
 *.tmp
 *.bak
 *.orig
+
+# Local schedule data written by the API
+data/

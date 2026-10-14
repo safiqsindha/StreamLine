@@ -14,11 +14,14 @@ import { newId } from '../core/ids'
 import { parseFile } from '../core/import'
 import { reconcile } from '../core/import/reconcile'
 import { ImportError, type ColumnMapping, type ImportPreview, type ParsedSchedule } from '../core/import/types'
-import { resolveView, VIEW_IDS, type ViewId, type ViewState } from '../core/views'
-import { computeRange, createLayout, HEADER_HEIGHT, ROW_HEIGHT, type Zoom } from '../core/layout'
+import { resolveView, VIEW_IDS, type ResolvedView, type ViewId, type ViewState } from '../core/views'
+import { computeRange, createLayout, HEADER_HEIGHT, ROW_HEIGHT, type Layout, type Zoom } from '../core/layout'
+import { renderTimeline } from '../core/render/timeline'
+import { S } from '../core/strings'
 import type { Criticality } from '../core/model'
 import { isSafeId } from './fileStore'
 import { openApiDocument } from './openapi'
+import { exportTheme, readThemeCss, svgDocument, svgToPdf, svgToPng } from './render'
 
 export type ParseFn = (bytes: Uint8Array, filename: string, mapping?: ColumnMapping) => Promise<ParsedSchedule>
 
@@ -26,6 +29,8 @@ export interface AppOptions {
   parse?: ParseFn
   maxBodyBytes?: number
   previewTtlMs?: number
+  /** Contents of theme.css; defaults to src/web/theme.css read once at startup. */
+  themeCss?: string
 }
 
 const MAX_BODY = 25 * 1024 * 1024
@@ -233,11 +238,6 @@ function toCsv(tasks: Task[]): string {
   return lines.join('\r\n') + '\r\n'
 }
 
-function fileSafe(name: string): string {
-  const s = name.replace(/[^A-Za-z0-9._-]+/g, '_').replace(/^_+|_+$/g, '')
-  return s || 'schedule'
-}
-
 function applyTaskPatch(current: TaskPresentation | undefined, patch: unknown, taskId: string): TaskPresentation | null {
   if (!isObject(patch)) throw bad(`The override for task "${taskId}" must be an object or null.`)
   const next: Record<string, unknown> = { ...(current ?? {}) }
@@ -268,10 +268,138 @@ function applyTaskPatch(current: TaskPresentation | undefined, patch: unknown, t
   return Object.keys(next).length ? (next as TaskPresentation) : null
 }
 
+const LABEL_WIDTH = 250
+
+function slug(name: string): string {
+  const s = name.normalize('NFKD').replace(/[\u0300-\u036f]/g, '').toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '')
+  return s || 'schedule'
+}
+
+function sendFile(res: ServerResponse, data: Buffer, filename: string, type: string): void {
+  res.writeHead(200, {
+    'Content-Type': type,
+    'Content-Disposition': `attachment; filename="${filename}"`,
+    'Content-Length': data.length,
+    'Cache-Control': 'no-store',
+  })
+  res.end(data)
+}
+
+function nothingToDraw(reason: ResolvedView['emptyReason'], focusGroup: string | undefined): string {
+  const e = S.empty
+  switch (reason) {
+    case 'no-criticality-data':
+      return e.noCriticalityBody
+    case 'no-critical-tasks':
+      return e.noCriticalBody
+    case 'no-matching-tasks':
+      return `${e.noMatchTitle}. ${e.noMatchBody}`
+    case 'unknown-group':
+      return e.unknownGroupBody(focusGroup ?? '')
+    case 'no-tasks':
+      return e.noTasks
+    default:
+      return e.nothing
+  }
+}
+
+interface ExportOptions {
+  state: ViewState
+  zoom: Zoom
+  compare: string | null
+  showDeps: boolean
+  selectedId: string | null
+  today: string
+}
+
+function localToday(): string {
+  const d = new Date()
+  const p = (n: number) => String(n).padStart(2, '0')
+  return `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())}`
+}
+
+function optString(body: Record<string, unknown>, key: string): string | undefined {
+  const v = body[key]
+  if (v === undefined || v === null) return undefined
+  if (typeof v !== 'string') throw bad(`"${key}" must be text.`)
+  return v
+}
+
+function optStringList(v: unknown, key: string): string[] | undefined {
+  if (v === undefined || v === null) return undefined
+  if (!Array.isArray(v) || !v.every((x) => typeof x === 'string')) throw bad(`"${key}" must be a list of text values.`)
+  return v as string[]
+}
+
+function optPositiveInt(body: Record<string, unknown>, key: string): number | undefined {
+  const v = body[key]
+  if (v === undefined || v === null) return undefined
+  if (typeof v !== 'number' || !Number.isInteger(v) || v < 1) throw bad(`"${key}" must be a whole number of 1 or more.`)
+  return v
+}
+
+function parseExportBody(body: Record<string, unknown>): ExportOptions {
+  const view = body.view === undefined || body.view === null ? 'detailed' : body.view
+  if (typeof view !== 'string' || !VIEW_IDS.includes(view as ViewId)) throw bad(`"view" must be one of: ${VIEW_IDS.join(', ')}.`)
+  const state: ViewState = { view: view as ViewId }
+
+  const zoom = body.zoom === undefined || body.zoom === null ? 'week' : body.zoom
+  if (typeof zoom !== 'string' || !ZOOMS.includes(zoom as Zoom)) throw bad(`"zoom" must be one of: ${ZOOMS.join(', ')}.`)
+
+  const page = optPositiveInt(body, 'page')
+  const pageSize = optPositiveInt(body, 'pageSize')
+  if (page !== undefined) state.page = page
+  if (pageSize !== undefined) state.pageSize = pageSize
+  const collapsed = optStringList(body.collapsed, 'collapsed')
+  if (collapsed) state.collapsed = collapsed
+  const focus = optString(body, 'focusGroup')
+  if (focus !== undefined) state.focusGroup = focus
+
+  if (body.filters !== undefined && body.filters !== null) {
+    const f = body.filters
+    if (!isObject(f)) throw bad('"filters" must be an object.')
+    const filters: NonNullable<ViewState['filters']> = {}
+    if (f.text !== undefined && f.text !== null) {
+      if (typeof f.text !== 'string') throw bad('"filters.text" must be text.')
+      if (f.text) filters.text = f.text
+    }
+    const groups = optStringList(f.groups, 'filters.groups')
+    if (groups?.length) filters.groups = groups
+    const crit = optStringList(f.criticality, 'filters.criticality')
+    if (crit?.length) {
+      for (const c of crit) if (!CRITICALITIES.includes(c as Criticality)) throw bad(`"filters.criticality" values must be: ${CRITICALITIES.join(', ')}.`)
+      filters.criticality = crit as Criticality[]
+    }
+    if (f.overlap !== undefined && f.overlap !== null) {
+      const o = f.overlap
+      if (!isObject(o) || typeof o.start !== 'string' || typeof o.finish !== 'string' || !ISO_DAY.test(o.start) || !ISO_DAY.test(o.finish)) {
+        throw bad('"filters.overlap" needs "start" and "finish" as YYYY-MM-DD dates.')
+      }
+      filters.overlap = { start: o.start, finish: o.finish }
+    }
+    if (Object.keys(filters).length) state.filters = filters
+  }
+
+  const compare = optString(body, 'compare') || null
+  if (body.showDeps !== undefined && body.showDeps !== null && typeof body.showDeps !== 'boolean') throw bad('"showDeps" must be true or false.')
+  const today = optString(body, 'today')
+  if (today !== undefined && !ISO_DAY.test(today)) throw bad('"today" must be a YYYY-MM-DD date.')
+
+  return {
+    state,
+    zoom: zoom as Zoom,
+    compare,
+    showDeps: body.showDeps === true,
+    selectedId: optString(body, 'selectedId') || null,
+    today: today ?? localToday(),
+  }
+}
+
 export function createApp(store: Store, opts: AppOptions = {}): (req: IncomingMessage, res: ServerResponse) => void {
   const parse = opts.parse ?? parseFile
   const maxBody = opts.maxBodyBytes ?? MAX_BODY
   const ttl = opts.previewTtlMs ?? PREVIEW_TTL
+  const theme = exportTheme(opts.themeCss ?? readThemeCss())
   const previews = new Map<string, { preview: ImportPreview; replaceId: string | null; expires: number }>()
 
   const sweep = () => {
@@ -283,6 +411,42 @@ export function createApp(store: Store, opts: AppOptions = {}): (req: IncomingMe
     const s = await store.getSchedule(checkId(id, 'schedule'))
     if (!s) throw notFound('That schedule was not found. It may have been deleted.')
     return s
+  }
+
+  /** The one place a schedule plus view state becomes rows and a layout. Both GET /view and exports use it. */
+  async function buildView(schedule: Schedule, state: ViewState, zoom: Zoom, compareId: string | null) {
+    let baseline: Baseline | undefined
+    if (compareId) {
+      checkId(compareId, 'baseline')
+      baseline = (await store.listBaselines(schedule.id)).find((b) => b.id === compareId)
+      if (!baseline) throw notFound('That baseline was not found.')
+    }
+
+    const presentation = (await store.getPresentation(schedule.id)) ?? emptyPresentation(schedule.id)
+    let resolved
+    try {
+      resolved = resolveView(schedule, presentation, state)
+    } catch {
+      throw new HttpError(500, 'Streamline could not build this view.')
+    }
+
+    const byId = new Map(schedule.tasks.map((t) => [t.id, t]))
+    const baseById = new Map((baseline?.tasks ?? []).map((t) => [t.id, t]))
+    const dates: Array<string | null> = []
+    const addTask = (id: string) => {
+      const t = byId.get(id)
+      if (t) dates.push(t.start, t.finish)
+      const b = baseById.get(id)
+      if (b) dates.push(b.start, b.finish)
+    }
+    for (const row of resolved.rows) {
+      if (row.kind === 'task') addTask(row.taskId)
+      else if (row.kind === 'milestones') row.taskIds.forEach(addTask)
+      else dates.push(row.start, row.finish)
+    }
+    const range = computeRange(dates, zoom)
+    const layout: Layout | null = range ? createLayout(range, zoom, resolved.rows.length) : null
+    return { presentation, baseline, resolved, layout }
   }
 
   const routes: Route[] = []
@@ -384,39 +548,9 @@ export function createApp(store: Store, opts: AppOptions = {}): (req: IncomingMe
     if (!ZOOMS.includes(zoomRaw as Zoom)) throw bad(`"zoom" must be one of: ${ZOOMS.join(', ')}.`)
     const zoom = zoomRaw as Zoom
 
-    const compare = query.get('compare')
-    let baseline: Baseline | undefined
-    if (compare) {
-      checkId(compare, 'baseline')
-      baseline = (await store.listBaselines(schedule.id)).find((b) => b.id === compare)
-      if (!baseline) throw notFound('That baseline was not found.')
-    }
-
-    const presentation = (await store.getPresentation(schedule.id)) ?? emptyPresentation(schedule.id)
-    let resolved
-    try {
-      resolved = resolveView(schedule, presentation, state)
-    } catch {
-      throw new HttpError(500, 'Streamline could not build this view.')
-    }
-
-    const byId = new Map(schedule.tasks.map((t) => [t.id, t]))
-    const baseById = new Map((baseline?.tasks ?? []).map((t) => [t.id, t]))
-    const dates: Array<string | null> = []
-    const addTask = (id: string) => {
-      const t = byId.get(id)
-      if (t) dates.push(t.start, t.finish)
-      const b = baseById.get(id)
-      if (b) dates.push(b.start, b.finish)
-    }
-    for (const row of resolved.rows) {
-      if (row.kind === 'task') addTask(row.taskId)
-      else if (row.kind === 'milestones') row.taskIds.forEach(addTask)
-      else dates.push(row.start, row.finish)
-    }
-    const range = computeRange(dates, zoom)
-    const layout = range
-      ? (({ ppd, width, height }) => ({ zoom, ppd, range, width, height }))(createLayout(range, zoom, resolved.rows.length))
+    const { resolved, layout: full } = await buildView(schedule, state, zoom, query.get('compare'))
+    const layout = full
+      ? { zoom, ppd: full.ppd, range: full.range, width: full.width, height: full.height }
       : { zoom, ppd: createLayout({ start: 0, end: 0 }, zoom, 0).ppd, range: null, width: 0, height: HEADER_HEIGHT + resolved.rows.length * ROW_HEIGHT }
     send(res, 200, { resolved, layout })
   })
@@ -516,17 +650,34 @@ export function createApp(store: Store, opts: AppOptions = {}): (req: IncomingMe
     const body = await readJson(req, maxBody)
     const format = body.format
     if (typeof format !== 'string' || !EXPORT_FORMATS.includes(format)) throw bad(`"format" must be one of: ${EXPORT_FORMATS.join(', ')}.`)
-    if (format === 'png' || format === 'svg' || format === 'pdf') throw new HttpError(501, 'Not available yet')
-    const base = fileSafe(schedule.name)
-    const text = format === 'csv' ? toCsv(schedule.tasks) : JSON.stringify(schedule, null, 2)
-    const filename = `${base}.${format}`
-    res.writeHead(200, {
-      'Content-Type': format === 'csv' ? 'text/csv; charset=utf-8' : 'application/json; charset=utf-8',
-      'Content-Disposition': `attachment; filename="${filename}"`,
-      'Content-Length': Buffer.byteLength(text),
-      'Cache-Control': 'no-store',
+
+    if (format === 'csv' || format === 'json') {
+      const text = format === 'csv' ? toCsv(schedule.tasks) : JSON.stringify(schedule, null, 2)
+      sendFile(res, Buffer.from(text, 'utf8'), `${slug(schedule.name)}.${format}`, format === 'csv' ? 'text/csv; charset=utf-8' : 'application/json; charset=utf-8')
+      return
+    }
+
+    const opts = parseExportBody(body)
+    const { presentation, baseline, resolved, layout } = await buildView(schedule, opts.state, opts.zoom, opts.compare)
+    if (!layout || resolved.rows.length === 0) throw new HttpError(422, nothingToDraw(resolved.emptyReason, opts.state.focusGroup))
+
+    const svg = renderTimeline({
+      schedule,
+      presentation,
+      resolved,
+      layout,
+      selectedId: opts.selectedId,
+      showDeps: opts.showDeps,
+      baseline,
+      today: opts.today,
+      color: theme.color,
+      font: theme.font,
+      labels: { width: LABEL_WIDTH, title: `${schedule.name} · ${S.views[opts.state.view].label}` },
     })
-    res.end(text)
+    const name = `${slug(schedule.name)}-${opts.state.view}`
+    if (format === 'svg') sendFile(res, Buffer.from(svgDocument(svg), 'utf8'), `${name}.svg`, 'image/svg+xml; charset=utf-8')
+    else if (format === 'png') sendFile(res, svgToPng(svg), `${name}.png`, 'image/png')
+    else sendFile(res, svgToPdf(svg), `${name}.pdf`, 'application/pdf')
   })
 
   async function handle(req: IncomingMessage, res: ServerResponse): Promise<void> {

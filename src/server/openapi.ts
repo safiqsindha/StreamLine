@@ -189,18 +189,55 @@ export const openApiDocument = {
     },
     '/api/schedules/{id}/export': {
       post: {
-        summary: 'Export source data as CSV or JSON (png, svg and pdf are not available yet).',
+        summary: 'Export a view as PNG, SVG or PDF, or the source data as CSV or JSON.',
         description:
-          'CSV columns: id,name,workstream,owner,start,finish,milestone,critical,float_days,parent_id,is_summary,predecessors. An empty CSV cell means the source did not provide the value. Predecessors are id:TYPE:lagDays joined by semicolons. JSON keeps nulls.',
+          'PNG, SVG and PDF render the same layout and renderer as the screen. PNG and PDF are rasterized at 2x on white. Returns 422 when the view has nothing to draw. CSV columns: id,name,workstream,owner,start,finish,milestone,critical,float_days,parent_id,is_summary,predecessors. An empty CSV cell means the source did not provide the value. Predecessors are id:TYPE:lagDays joined by semicolons. JSON keeps nulls. Files are named <schedule>-<view>.<ext> for images and PDF.',
         parameters: [idParam],
-        requestBody: { required: true, content: json({ type: 'object', required: ['format'], properties: { format: { type: 'string', enum: ['png', 'svg', 'pdf', 'csv', 'json'] } } }) },
-        responses: {
-          '200': { description: 'The file, sent as an attachment.', content: { 'text/csv': { schema: { type: 'string' } }, 'application/json': { schema: { type: 'object' } } } },
-          '400': error('Unknown format.'),
-          '404': error('Schedule not found.'),
-          '501': error('Not available yet.'),
+        requestBody: {
+          required: true,
+          content: json({
+            type: 'object',
+            required: ['format'],
+            properties: {
+              format: { type: 'string', enum: ['png', 'svg', 'pdf', 'csv', 'json'] },
+              view: { type: 'string', enum: ['executive', 'detailed', 'dependencies', 'workstreams', 'critical'], default: 'detailed' },
+              zoom: { type: 'string', enum: ['day', 'week', 'month'], default: 'week' },
+              filters: {
+                type: 'object',
+                properties: {
+                  text: { type: 'string' },
+                  groups: { type: 'array', items: { type: 'string' } },
+                  criticality: { type: 'array', items: { type: 'string', enum: ['critical', 'not-critical', 'unavailable'] } },
+                  overlap: { type: 'object', required: ['start', 'finish'], properties: { start: { type: 'string', format: 'date' }, finish: { type: 'string', format: 'date' } } },
+                },
+              },
+              collapsed: { type: 'array', items: { type: 'string' } },
+              focusGroup: { type: 'string' },
+              page: { type: 'integer', minimum: 1 },
+              pageSize: { type: 'integer', minimum: 1 },
+              compare: { type: 'string', description: 'Baseline ID to draw against.' },
+              showDeps: { type: 'boolean' },
+              selectedId: { type: 'string' },
+              today: { type: 'string', format: 'date', description: 'Defaults to the server date.' },
+            },
+          }),
         },
-        'x-example': { request: { format: 'csv' }, response: 'id,name,workstream,owner,start,finish,milestone,critical,float_days,parent_id,is_summary,predecessors\r\n12,Engine hot fire,Propulsion,,2026-04-01,2026-04-03,false,critical,0,,false,10:FS:0' },
+        responses: {
+          '200': {
+            description: 'The file, sent as an attachment.',
+            content: {
+              'image/png': { schema: { type: 'string', format: 'binary' } },
+              'image/svg+xml': { schema: { type: 'string' } },
+              'application/pdf': { schema: { type: 'string', format: 'binary' } },
+              'text/csv': { schema: { type: 'string' } },
+              'application/json': { schema: { type: 'object' } },
+            },
+          },
+          '400': error('Unknown format or invalid option.'),
+          '404': error('Schedule or baseline not found.'),
+          '422': error('The view has nothing to draw.'),
+        },
+        'x-example': { request: { format: 'pdf', view: 'critical', zoom: 'week', today: '2026-04-01' }, response: 'schedule-critical.pdf (application/pdf attachment)' },
       },
     },
     '/api/openapi.json': {

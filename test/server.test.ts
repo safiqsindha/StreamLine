@@ -251,7 +251,7 @@ describe('server', () => {
     const csv = await call('POST', `/api/schedules/${s.id}/export`, { format: 'csv' })
     expect(csv.status).toBe(200)
     expect(csv.headers.get('content-type')).toContain('text/csv')
-    expect(csv.headers.get('content-disposition')).toContain('My_Program.csv')
+    expect(csv.headers.get('content-disposition')).toContain('my-program.csv')
     const lines = csv.text.trim().split('\r\n')
     expect(lines[0]).toBe('id,name,workstream,owner,start,finish,milestone,critical,float_days,parent_id,is_summary,predecessors')
     expect(lines[1]).toBe('1,Task 1,Avionics,,2026-01-05,2026-01-09,false,unavailable,,,false,')
@@ -260,9 +260,6 @@ describe('server', () => {
     const json = await call('POST', `/api/schedules/${s.id}/export`, { format: 'json' })
     expect(json.headers.get('content-disposition')).toContain('.json')
     expect(json.json.tasks[0].owner).toBeNull()
-    const png = await call('POST', `/api/schedules/${s.id}/export`, { format: 'png' })
-    expect(png.status).toBe(501)
-    expect(png.json.error.message).toBe('Not available yet')
     expect((await call('POST', `/api/schedules/${s.id}/export`, { format: 'doc' })).status).toBe(400)
   })
 
